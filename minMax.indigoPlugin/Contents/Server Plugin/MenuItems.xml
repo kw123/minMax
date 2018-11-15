@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<MenuItems>
+    <MenuItem id="defineDeviceStates">
+    <Name>Define Device + States to be tracked</Name>
+    <ConfigUI>
+            <Field id="infoLabel1" type="label"> <Label>add devcies/states to be tracked</Label></Field>
+            <Field id="infoLabel10" type="label"> <Label> ... and don't forget to select measurements and click on confirm at the bottom (scroll down)</Label></Field>
+
+
+            <Field   id="device" type="menu" tooltip="you have to click on your choice to signal your entry" >
+                <Label>Select  Device:</Label>
+                <List class="self" filter="" method="filterDevicesThatQualify" dynamicReload="false"/>
+                <CallbackMethod>pickDeviceCALLBACK</CallbackMethod>
+            </Field>
+
+            <Field    id="state"  type="menu" defaultValue="0">
+                <Label>state:</Label>
+                <List class="self" filter="" method="filterStatesThatQualify" dynamicReload="true"/>
+            </Field>
+            <Field  id="buttonConfirmdevstate" type="button"	tooltip="This will confirm  Device/State selection">
+                <Label>device / state:</Label><Title>CONFIRM</Title>
+                <CallbackMethod>buttonConfirmStateCALLBACK</CallbackMethod>
+            </Field>
+            <Field id="showM" visibleBindingValue="true"     type="checkbox" defaultValue="true" hidden="yes"></Field>
+
+            <Field id="infoLabelParameters" type="label"> <Label>parameters:</Label></Field>
+            <Field id="thisHourMin"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisHour -Min Value:</Label></Field>
+            <Field id="thisHourMax"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisHour -Max Value:</Label></Field>
+            <Field id="thisHourAve"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisHour -Ave Value:</Label></Field>
+            <Field id="thisHourDate"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>....... -Date/Count:</Label></Field>
+
+            <Field id="lastHourMin"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastHour -Min Value:</Label></Field>
+            <Field id="lastHourMax"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastHour -Max Value:</Label></Field>
+            <Field id="lastHourAve"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastHour -Ave Value:</Label></Field>
+            <Field id="lastHourDate"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>....... -Date/Count:</Label></Field>
+
+            <Field id="thisDayMin"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisDay -Min Value:</Label></Field>
+            <Field id="thisDayMax"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisDay -Max Value:</Label></Field>
+            <Field id="thisDayAve"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisDay -Ave Value:</Label></Field>
+            <Field id="thisDayDate"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>....... -Date/Count:</Label></Field>
+
+            <Field id="lastDayMin"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastDay -Min Value:</Label></Field>
+            <Field id="lastDayMax"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastDay -Max Value:</Label></Field>
+            <Field id="lastDayAve"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastDay -Ave Value:</Label></Field>
+            <Field id="lastDayDate"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>....... -Date/Count:</Label></Field>
+
+            <Field id="last7DaysMin"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>last 7 Days -Min Value:</Label></Field>
+            <Field id="last7DaysMax"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>last 7 Days -Max Value:</Label></Field>
+            <Field id="last7DaysAve"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>last 7 Days -Ave Value:</Label></Field>
+            <Field id="last7DaysDate" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>....... -Date/Count:</Label></Field>
+
+            <Field id="thisWeekMin"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisWeek -Min Value:</Label></Field>
+            <Field id="thisWeekMax"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisWeek -Max Value:</Label></Field>
+            <Field id="thisWeekAve"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisWeek -Ave Value:</Label></Field>
+            <Field id="thisWeekDate"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>....... -Date/Count:</Label></Field>
+
+            <Field id="lastWeekMin"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastWeek -Min Value:</Label></Field>
+            <Field id="lastWeekMax"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastWeek -Max Value:</Label></Field>
+            <Field id="lastWeekAve"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastWeek -Ave Value:</Label></Field>
+            <Field id="lastWeekDate"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>....... -Date/Count:</Label></Field>
+            
+            <Field id="thisMonthMin"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisMonth -Min Value:</Label></Field>
+            <Field id="thisMonthMax"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisMonth -Max Value:</Label></Field>
+            <Field id="thisMonthAve"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisMonth -Ave Value:</Label></Field>
+            <Field id="thisMonthDate" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>....... -Date/Count:</Label></Field>
+
+            <Field id="lastMonthMin"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastMonth -Min Value:</Label></Field>
+            <Field id="lastMonthMax"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastMonth -Max Value:</Label></Field>
+            <Field id="lastMonthAve"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastMonth -Ave Value:</Label></Field>
+            <Field id="lastMonthDate" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>....... -Date/Count:</Label></Field>
+
+            <Field id="ignoreLess"                                                          type="textfield" defaultValue="-9999999999"><Label>Ignore if values LESS than:</Label></Field>
+            <Field id="ignoreGreater"                                                       type="textfield" defaultValue="-9999999999"><Label>Ignore if values GREATER than:</Label></Field>
+ 
+            <Field  id="buttonConfirm" type="button"	tooltip="This will add Device/State">
+                <Label>To Add  to tracking     click....:</Label><Title>CONFIRM</Title>
+                <CallbackMethod>buttonConfirmCALLBACK</CallbackMethod>
+            </Field>
+    </ConfigUI>
+    </MenuItem>
+
+    <MenuItem id="removeDeviceStates">
+    <Name>Remove Device + States from tracking</Name>
+    <ConfigUI>
+            <Field id="infoLabel1" type="label"> <Label>remove devices/states from tracking</Label></Field>
+
+            <Field   id="device" type="menu" tooltip="you have to click on your choice to signal your entry" >
+                <Label>Select  Device:</Label>
+                <List class="self" filter="" method="filterExistingDevices" dynamicReload="false"/>
+                <CallbackMethod>pickExistingDeviceCALLBACK</CallbackMethod>
+            </Field>
+
+            <Field    id="state"  type="menu" defaultValue="0">
+                <Label>state:</Label>
+                <List class="self" filter="" method="filterExistingStates" dynamicReload="true"/>
+            </Field>
+
+            <Field  id="buttonRemove" type="button"	tooltip="This will remove Device/State">
+                <Label>To remove from tracking click....:</Label><Title>REMOVE</Title>
+                <CallbackMethod>buttonRemoveCALLBACK</CallbackMethod>
+            </Field>
+    </ConfigUI>
+    </MenuItem>
+    <MenuItem id="printConfig">
+        <Name>print tracking setup to logfile </Name>
+        <CallbackMethod>printConfigCALLBACK</CallbackMethod>
+    </MenuItem>
+    
+
+</MenuItems>
