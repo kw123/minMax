@@ -151,7 +151,6 @@ class Plugin(indigo.PluginBase):
 ####-----------------  set the geneeral config parameters---------
 	def validatePrefsConfigUi(self, valuesDict):
 
-		self.debugLevel         = int(valuesDict[u"debugLevel"])
 		self.debugLevel = []
 		for d in ["Loop","Sql","Setup","all"]:
 			if valuesDict[u"debug"+d]: self.debugLevel.append(d)
