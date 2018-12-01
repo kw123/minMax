@@ -177,20 +177,23 @@ class Plugin(indigo.PluginBase):
 ####-----------------   ---------
 	def printConfigCALLBACK(self,devstr=""):
 		try:
-			self.ML.myLog( text="Configuration: Dev-Name    DevID            State       ignoreLess  ignoreGreater; tracking states: -------")
+			self.ML.myLog( text="Configuration: Dev-Name    DevID            State       ignoreLess   ignoreGreater tracking measures: -------")
 			for devid in self.devList:
 				if devid == devstr or devstr=="":
 					for state in self.devList[devid]["states"]:
 						out="  "+"%15.0f"%self.devList[devid]["states"][state]["ignoreLess"]+" "+"%15.0f"%(self.devList[devid]["states"][state]["ignoreGreater"])+" "
+						measures =""
 						for tt in self.devList[devid]["states"][state]:
 							if tt =="ignoreLess" or tt == "ignoreGreater": continue
 							for ss in self.devList[devid]["states"][state][tt]:
 								if  self.devList[devid]["states"][state][tt][ss]["use"]:
-									out+= tt+"_"+ss+"  "
+									measures+= tt+"_"+ss+"  "
+						if measures == "":
+							measures ="--- no measure selected, no variable will be created---"
 						if self.devList[devid]["devOrVar"]=="Var":           
-							self.ML.myLog( text= indigo.variables[int(devid)].name.ljust(20) +"; "+devid.ljust(10)+"; "+state.rjust(15)+out )
+							self.ML.myLog( text= indigo.variables[int(devid)].name.ljust(20) +"; "+devid.ljust(10)+"; "+state.rjust(15)+out+measures )
 						else:           
-							self.ML.myLog( text= indigo.devices[int(devid)].name.ljust(20) +"; "+devid.ljust(10)+"; "+state.rjust(15)+ out )
+							self.ML.myLog( text= indigo.devices[int(devid)].name.ljust(20) +"; "+devid.ljust(10)+"; "+state.rjust(15)+ out+measures )
 		except  Exception, e:
 			if len(unicode(e)) > 5:
 				self.ML.myLog( text= "error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e),)
@@ -209,8 +212,9 @@ class Plugin(indigo.PluginBase):
 					valuesDict[tt+ss]=False
 				valuesDict[tt+"Date"]=False
 			valuesDict["showM"]=False          
-			valuesDict["ignoreGreater"]="+9876543210."          
-			valuesDict["ignoreLess"]   ="-9876543210."          
+			valuesDict["ignoreGreater"]="+9876543210."
+			valuesDict["ignoreLess"]   ="-9876543210."
+			valuesDict["MSG"]   =""
 
 		return valuesDict
 
@@ -258,6 +262,7 @@ class Plugin(indigo.PluginBase):
 				del self.devList[devstr]
 		self.devIDExist 	= 0
 		valuesDict["state"] = ""
+		self.preSelectDevices()
 		return valuesDict
 
 
@@ -365,6 +370,7 @@ class Plugin(indigo.PluginBase):
 ####-----------------   ---------
 	def buttonConfirmCALLBACK(self,valuesDict="",typeId=""):                # Select only device/properties that are supported
 		try:
+			valuesDict["MSG"] = "ok"
 			devstr= str(self.devID)
 			if self.devOrVar=="Var":
 				dev=indigo.variables[int(self.devID)]
@@ -377,13 +383,15 @@ class Plugin(indigo.PluginBase):
 			self.devList[devstr]["devOrVar"]= self.devOrVar
 		
 			state = valuesDict["state"]
+			anyOne = False
 			for tt in  tagsTimes:
 				use=False
 				for ss in tagsMMA: 
 					if valuesDict[tt+ss]:
 						#self.ML.myLog( text= unicode(self.devList[devstr]) )
 						self.devList[devstr]["states"][state][tt][ss]["use"]=True
-						use=True
+						use		=True
+						anyOne	= True
 					else:    
 						self.devList[devstr]["states"][state][tt][ss]["use"]=False
 					if use:    
@@ -391,6 +399,7 @@ class Plugin(indigo.PluginBase):
 						if valuesDict[tt+uu]:
 							for vv in range(len(tagsDateCount)):
 								self.devList[devstr]["states"][state][tt][ss]["dateCount"][vv]=True
+							anyOne	= True
 						else:
 							for vv in range(len(tagsDateCount)):
 								#self.ML.myLog( text=" ss0  "+unicode(self.devList[devstr][state][tt]))
@@ -405,12 +414,14 @@ class Plugin(indigo.PluginBase):
 				pass
 					  
 			self.saveNow=True
-		
+			self.preSelectDevices()
+
 			self.printConfigCALLBACK(devstr=devstr)
 		except  Exception, e:
 			if len(unicode(e)) > 5:
 				self.ML.myLog( errorType = u"bigErr", text ="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e))
 		valuesDict["showM"]=False          
+		if not anyOne: valuesDict["MSG"] ="no measure selected-- no variable will be cretaed"
 
 		return valuesDict
 
@@ -757,10 +768,12 @@ class Plugin(indigo.PluginBase):
 			x = self.getNumber(val)
 			if x !="x":
 				try:
-					self.listOfPreselectedDevices.append((str(theVar.id)+"-V", "Var-"+unicode(theVar.name)))
+					if str(theVar.id) in self.devList:
+						self.listOfPreselectedDevices.append((str(theVar.id)+"-V", "=TRACKED--Var-"+unicode(theVar.name)))
+					else:
+						self.listOfPreselectedDevices.append((str(theVar.id)+"-V", "Var-"+unicode(theVar.name)))
 				except  Exception, e:
 					self.ML.myLog( errorType = u"bigErr", text ="Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
-		#self.ML.myLog( text="after var: "+ unicode(self.listOfPreselectedDevices)))
 
 		for dev in indigo.devices.iter():
 			theStates = dev.states.keys()
@@ -780,7 +793,10 @@ class Plugin(indigo.PluginBase):
 						count +=1
 			if count>0:                                                 # add to the selection list
 				try:
-					self.listOfPreselectedDevices.append((dev.id, dev.name))                ## give all id's and names of  devices that have at least one of the keys we can track
+					if str(dev.id) in self.devList:
+						self.listOfPreselectedDevices.append((dev.id,"=TRACKED--"+ dev.name))
+					else:
+						self.listOfPreselectedDevices.append((dev.id, dev.name))
 				except  Exception, e:
 					self.ML.myLog( errorType = u"bigErr", text ="Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
 		return

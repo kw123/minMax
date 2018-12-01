@@ -6,6 +6,7 @@
             <Field id="infoLabel1" type="label"> <Label>add devcies/states to be tracked</Label></Field>
             <Field id="infoLabel10" type="label"> <Label> ... and don't forget to select measurements and click on confirm at the bottom (scroll down)</Label></Field>
 
+            <Field    id="MSG"   type="textfield" defaultValue="" > <Label> message from Plugin:</Label> </Field>
 
             <Field   id="device" type="menu" tooltip="you have to click on your choice to signal your entry" >
                 <Label>Select  Device:</Label>

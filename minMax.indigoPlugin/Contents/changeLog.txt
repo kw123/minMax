@@ -1,0 +1,7 @@
+changes in V 7.7.5  @ 2018-12-01
+==================
+
+1. added warning to selection menu, if no measure (ave min/max) was selected that no variable will be created.
+	also same info is printed to logfile "--- no measure selected, no variable will be created---"
+2. previsously defined / tracked devies are marked in the selection box for new devices to be tracked
+3. bugfix in logfile for error messages
