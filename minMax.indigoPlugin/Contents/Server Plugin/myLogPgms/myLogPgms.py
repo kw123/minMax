@@ -38,7 +38,7 @@ class MLX():
             except  Exception, e:
                 if len(unicode(e)) > 5:
                     indigo.server.log(u"in Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
-        indigo.server.log(u"myLogSet setting parameters -- logFileActive= "+ unicode(self.logFileActive) + ";  logFile= "+ unicode(self.logFile)  + ";  debugLevel= "+ unicode(self.debugLevel) +"; maxFileSize= "+ unicode(self.maxFileSize))
+        self.myLog( text="myLogSet setting parameters -- logFileActive= "+ unicode(self.logFileActive) + ";  logFile= "+ unicode(self.logFile)  + ";  debugLevel= "+ unicode(self.debugLevel) +"; maxFileSize= "+ unicode(self.maxFileSize), destination="standard")
 
 
 ####-----------------  check logfile sizes ---------
@@ -76,7 +76,7 @@ class MLX():
         return False
 
 ####-----------------  print to logfile or indigo log  ---------
-    def myLog(self,  text="", mType="", errorType="", showDate=True):
+    def myLog(self,  text="", mType="", errorType="", showDate=True, destination=""):
            
     
         if  time.time() - self.lastCheck > 100:
@@ -84,7 +84,7 @@ class MLX():
 
       
         try:
-            if  self.logFileActive =="standard":
+            if  self.logFileActive =="standard" or destination.find("standard") >-1:
                 if errorType == u"smallErr":
                     indigo.server.log(u"------------------------------------------------------------------------------")
                     indigo.server.log(text)
@@ -101,11 +101,9 @@ class MLX():
                     indigo.server.log(text)
                 else:
                     indigo.server.log(text, type=mType)
-                return
 
 
-            else: # print to external logfile
-
+            if  self.logFileActive !="standard":
 
                 ts =""
                 try:

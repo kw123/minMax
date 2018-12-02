@@ -1,7 +1,43 @@
-changes in V 7.7.5  @ 2018-12-01
-==================
+changes in V 7.8.5  @ 2018-12-02  
+==================  
 
-1. added warning to selection menu, if no measure (ave min/max) was selected that no variable will be created.
-	also same info is printed to logfile "--- no measure selected, no variable will be created---"
-2. previsously defined / tracked devies are marked in the selection box for new devices to be tracked
-3. bugfix in logfile for error messages
+1. major rewrite of internal data structure.  
+
+2. added format option for ave/min/max variables  eg %.1f or %.3f ... 
+	For count it is integer and dates it is string  
+
+3. added free format option for date strings in eg ...DateMax   
+	%Y-%m-%d %H:%M:%S   ==>  2018-02-24 15:13:40 
+	%y-%b-%d %I%p %M:%S ==>  2018-Feb-24 3pm 13:40 
+	set in config
+
+4. added count if value > 0 measure  
+
+5. average is now a proper time weighted average, before it was just sum(values)/count.
+	if eg temperature is 0 for 1 hour and 10 for 9 hours
+	  simple average would give 5, time weighted average = 9  
+	 ==> sqllogger used to get the data only stores the changes, hence time weighted average is more proper
+	 in most cases the difference is much smaller 
+
+6. now has the following measures:  
+	BINS: "thisHour","lastHour","thisDay","lastDay","thisWeek","lastWeek","thisMonth","lastMonth","last7Days"  
+	and for each of the above the following   
+	functions: "Min","Max","DateMin = Date of Min","DateMax = Date of Max","Ave","Count","Count1= Count when value>0 - use for eg events = on/off types" 
+
+7. option to choose short name for variables - set in define tarcking of devices menu
+	instead of s-2-TH-Leo-Outside_Temperature_thisWeek_Max
+	eg  set short name to        L-O-Temp
+	results in variable name:    L-O-Temp_thisWeek_Max
+
+8. in menu add device/state now shows the previously selected devices first
+
+9. added time CPU tracking option (for debugging and experts), set in config 
+
+
+changes in V 7.7.5  @ 2018-12-01  
+==================  
+
+1. added warning to selection menu, if no measure (ave min/max) was selected that no variable will be created.  
+	also same info is printed to logfile "--- no measure selected, no variable will be created---"  
+2. previously defined / tracked devices are marked in the selection box for new devices to be tracked  
+3. bugfix in logfile for error messages  
