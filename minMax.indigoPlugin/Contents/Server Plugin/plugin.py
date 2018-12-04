@@ -16,6 +16,8 @@ import fcntl
 import signal
 import copy
 import myLogPgms.myLogPgms 
+import logging
+import math
 
 import cProfile
 import pstats
@@ -31,11 +33,10 @@ device_state_Min  .. Max   Ave DateMin DateMax Count Count1 with the values.
 '''
 
 _tagsTimes     =["thisHour","lastHour","thisDay","lastDay","thisWeek","lastWeek","thisMonth","lastMonth","last7Days"]
-_tagsMMA       =["Min","Max","DateMin","DateMax","Ave","Count","Count1"]
+_tagsMMA       =["Min","Max","DateMin","DateMax","Ave","Count","Count1","StdDev"]
 
 ################################################################################
 class Plugin(indigo.PluginBase):
-
 ####----------------- logfile  ---------
 	def __init__(self, pluginId, pluginDisplayName, pluginVersion, pluginPrefs):
 		indigo.PluginBase.__init__(self, pluginId, pluginDisplayName, pluginVersion, pluginPrefs)
@@ -48,7 +49,7 @@ class Plugin(indigo.PluginBase):
 		self.pluginId           = pluginId
 		self.pluginName         = pluginId.split(".")[-1]
 		self.pluginShortName    = "minMax"
-	
+		self.quitNow			= "" # set to !="" when plugin should exit ie to restart, needed for subscription -> loop model
 	
 ####-----------------   ---------
 	def __del__(self):
@@ -56,6 +57,7 @@ class Plugin(indigo.PluginBase):
 	
 ####-----------------   ---------
 	def startup(self):
+		global xxxxx
 
 		self.epoch = datetime.datetime(1970, 1, 1)
 
@@ -108,7 +110,10 @@ class Plugin(indigo.PluginBase):
 		for devId in self.devList:
 			#self.ML.myLog( text="devId devList "+ str(devId)+ " " +unicosde(self.devList[devId]) )
 			if "states" not in self.devList[devId]: continue
-			for state in self.devList[devId]["states"]:   
+			remState =[]
+			for state in self.devList[devId]["states"]:
+				if len(state)< 2:
+					remState.append(state)
 				if "ignoreLess"    not in self.devList[devId]["states"][state]:
 						self.devList[devId]["states"][state]["ignoreLess"]			= -9876543210.
 				if "ignoreGreater" not in self.devList[devId]["states"][state]:
@@ -121,14 +126,15 @@ class Plugin(indigo.PluginBase):
 						self.devList[devId]["states"][state]["timeFormatDisplay"] 	= self.timeFormatInternal
 				if "shortName" not in self.devList[devId]["states"][state]:
 						self.devList[devId]["states"][state]["shortName"] 			= ""
+			for state in remState:
+				del self.devList[devId]["states"][state]
 
 		self.variFolderName			= self.pluginPrefs.get("variFolderName","minMax")
 		self.saveNow				= False
-		self.devIDSelected					= 0
-		self.devIDSelectedExist				= 0
+		self.devIDSelected			= 0
+		self.devIDSelectedExist		= 0
 		self.devOrVarExist			= "Var"
 		self.devOrVar				= "Var"
-		self.quitNow				= "" # set to !="" when plugin should exit ie to restart, needed for subscription -> loop model
 		self.stopConcurrentCounter	= 0
 		self.pluginPrefs["devList"]	= json.dumps(self.devList)
 		self.dateLimits				= [["2015-11-00-00:00:00","2015-12-00-00:00:00",0,0],["2015-12-00-00:00:00","2015-12-12-00:00:00",0,0]]
@@ -139,6 +145,9 @@ class Plugin(indigo.PluginBase):
 		self.weekLast				= 999 # last week
 
 		self.printConfigCALLBACK()
+		
+		
+
 		return
 
 ####-----------------   ---------
@@ -148,8 +157,7 @@ class Plugin(indigo.PluginBase):
 		if   self.logFileActive =="standard":   self.logFile = ""
 		elif self.logFileActive =="indigo":     self.logFile = self.indigoPath.split("Plugins/")[0]+"Logs/"+self.pluginId+"/plugin.log"
 		else:                                   self.logFile = self.userIndigoPluginDir +"plugin.log"
-		self.ML.myLogSet(debugLevel = self.debugLevel ,logFileActive=self.logFileActive, logFile = self.logFile)
-		self.ML.myLog( text="Date format: "+ self.timeFormatDisplay +" ==> "+ (datetime.datetime.now()).strftime(self.timeFormatDisplay), destination="standard" )
+		self.ML.myLogSet(debugLevel = self.debugLevel ,logFileActive=self.logFileActive, logFile = self.logFile, pluginSelf=self)
 
 ####-----------------   ---------
 	def deviceStartComm(self, dev):
@@ -159,12 +167,6 @@ class Plugin(indigo.PluginBase):
 ####-----------------   ---------
 	def deviceStopComm(self, dev):
 		return
-####-----------------   ---------
-	def stopConcurrentThread(self):
-		self.stopConcurrentCounter +=1
-		self.ML.myLog( text=u"stopConcurrentThread called " + str(self.stopConcurrentCounter), destination="standard" )
-		if self.stopConcurrentCounter ==1:
-			self.stopThread = True
 
 
  
@@ -198,23 +200,31 @@ class Plugin(indigo.PluginBase):
 	def printConfigCALLBACK(self, printDevId=""):
 		try:
 			self.ML.myLog( text="Configuration: ... date format: "+ self.timeFormatDisplay +" ==> "+ (datetime.datetime.now()).strftime(self.timeFormatDisplay), destination="standard"  )
-			self.ML.myLog( text="Dev-Name-----                   DevID            State       ignoreLess   ignoreGreater  format tracking measures: -------", destination="standard" )
+			header = "Dev-Name-----                     DevID            State   ignoreLess ignoreGreater  format tracking "
+			indent = "                           "
+			self.ML.myLog( text=header+"measures: -------", destination="standard" )
 			for devId in self.devList:
 				if devId == printDevId or printDevId=="":
 					for state in self.devList[devId]["states"]:
-						out="  "+"%15.0f"%self.devList[devId]["states"][state]["ignoreLess"]+" "+"%15.0f"%(self.devList[devId]["states"][state]["ignoreGreater"])+(" '"+self.devList[devId]["states"][state]["formatNumbers"]+"'").rjust(8)+" "
-						measures =""
+						out = "%13.0f"%self.devList[devId]["states"][state]["ignoreLess"]+"%14.0f"%(self.devList[devId]["states"][state]["ignoreGreater"])+("'"+self.devList[devId]["states"][state]["formatNumbers"]+"'").rjust(8)+" "
+						measures = ""
 						for tt in self.devList[devId]["states"][state]["measures"]:
+							ssLine = ""
 							for ss in self.devList[devId]["states"][state]["measures"][tt]:
 								##indigo.server.log( state+"  "+ tt+"  "+ss+" "+unicode(self.devList[devId]["states"][state]["measures"][tt][ss]))
 								if  self.devList[devId]["states"][state]["measures"][tt][ss]:
-									measures+= tt+"_"+ss+" "
+									if ssLine =="":
+										if measures !="":
+											ssLine +="\n ".ljust(len(header)+ len(indent))
+										ssLine += (tt+"-").ljust(11)
+									ssLine	+= ss+" "
+							measures += ssLine
 						if measures == "":
 							measures ="--- no measure selected, no variable will be created---"
 						if self.devList[devId]["devOrVar"]=="Var":           
-							self.ML.myLog( text= indigo.variables[int(devId)].name.ljust(25) +"; "+devId.ljust(10)+"; "+state.rjust(15)+out+measures, destination="standard"  )
+							self.ML.myLog( text= indigo.variables[int(devId)].name.ljust(28) +  devId.rjust(11)+ state.rjust(17) + out+measures, destination="standard"  )
 						else:           
-							self.ML.myLog( text= indigo.devices[int(devId)].name.ljust(25) +"; "+devId.ljust(10)+"; "+state.rjust(15)+ out+measures, destination="standard"  )
+							self.ML.myLog( text= indigo.devices[int(devId)].name.ljust(28)   +  devId.rjust(11)+ state.rjust(17) + out+measures, destination="standard"  )
 		except  Exception, e:
 			if len(unicode(e)) > 5:
 				self.ML.myLog( text= "printConfigCALLBACK error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
@@ -236,7 +246,8 @@ class Plugin(indigo.PluginBase):
 			valuesDict["ignoreGreater"]	= "+9876543210."
 			valuesDict["ignoreLess"]	= "-9876543210."
 			valuesDict["MSG"]   		= ""
-
+			self.devIDSelectedExist 	= 0
+			self.devIDSelected			= 0
 		return valuesDict
 
 
@@ -273,7 +284,7 @@ class Plugin(indigo.PluginBase):
 				retList.append((test,test))             
 		return retList
 ####-----------------   ---------
-	def buttonRemoveCALLBACK(self,valuesDict="",typeId=""):               # Select only device/properties that are supported
+	def buttonRemoveCALLBACK(self,valuesDict="",typeId=""):  
 		devId= str(self.devIDSelectedExist)
 		state= valuesDict["state"]
 		if devId in self.devList:
@@ -284,6 +295,25 @@ class Plugin(indigo.PluginBase):
 		self.devIDSelectedExist 	= 0
 		valuesDict["state"] = ""
 		self.preSelectDevices()
+		return valuesDict
+
+
+####-----------------   ---------
+	def buttonSelectAllCALLBACK(self,valuesDict="",typeId=""):   
+		for val in valuesDict:
+			for tag in _tagsTimes:
+				if tag in val:
+					valuesDict[val]= True
+					break
+		return valuesDict
+
+####-----------------   ---------
+	def buttonDeSelectAllCALLBACK(self,valuesDict="",typeId=""):   
+		for val in valuesDict:
+			for tag in _tagsTimes:
+				if tag in val:
+					valuesDict[val]= False
+					break
 		return valuesDict
 
 
@@ -306,10 +336,10 @@ class Plugin(indigo.PluginBase):
 		retList= copy.copy(self.listOfPreselectedDevices )
 		for devId in self.devList:
 			if self.devList[devId]["devOrVar"] == "Var":
-				try: retList.append([devId,"=v="+indigo.variables[int(devId)].name])
+				try: retList.append([devId,"=TRACKED--"+indigo.variables[int(devId)].name])
 				except: pass
 			else:
-				try: retList.append([devId,"=D="+indigo.devices[int(devId)].name])
+				try: retList.append([devId,"=TRACKED--"+indigo.devices[int(devId)].name])
 				except: pass
 		return retList
 
@@ -353,6 +383,11 @@ class Plugin(indigo.PluginBase):
 			dev=indigo.devices[int(self.devIDSelected)]
 		
 		state= valuesDict["state"]
+		if len(state) < 2:
+			valuesDict["showM"] = False          
+			valuesDict["MSG"] ="please select State" 
+			return valuesDict
+			
 		if devId not in  self.devList:
 			self.devList[devId]={}
 			self.devList[devId]["states"]={}
@@ -371,6 +406,7 @@ class Plugin(indigo.PluginBase):
 			self.devList[devId]["states"][state]["ignoreLess"]		= -9876543210.
 			self.devList[devId]["states"][state]["ignoreGreater"]	= +9876543210.
 			self.devList[devId]["states"][state]["formatNumbers"]	= "%.1f"
+			self.devList[devId]["states"][state]["shortName"]		= ""
 			
 		for tt in _tagsTimes:
 			if tt not in self.devList[devId]["states"][state]["measures"]:
@@ -394,7 +430,7 @@ class Plugin(indigo.PluginBase):
 		valuesDict["ignoreGreater"] = str(self.devList[devId]["states"][state]["ignoreGreater"])
 		valuesDict["formatNumbers"] =    (self.devList[devId]["states"][state]["formatNumbers"])
 		valuesDict["shortName"] 	=    (self.devList[devId]["states"][state]["shortName"])
-		valuesDict["showM"]=True          
+		valuesDict["showM"]			= True          
 		return valuesDict                        
 
 
@@ -403,6 +439,7 @@ class Plugin(indigo.PluginBase):
 		try:
 			valuesDict["MSG"] = "ok"
 			devId= str(self.devIDSelected)
+			
 			if self.devOrVar=="Var":
 				dev=indigo.variables[int(self.devIDSelected)]
 			else:
@@ -414,6 +451,12 @@ class Plugin(indigo.PluginBase):
 			self.devList[devId]["devOrVar"]= self.devOrVar
 		
 			state = valuesDict["state"]
+			if len(state) < 2:
+				valuesDict["showM"] = False          
+				valuesDict["MSG"] ="please select State" 
+				return valuesDict
+
+			
 			if "states" not in self.devList[devId]:
 				self.devList[devId]["states"] ={}
 				
@@ -446,14 +489,16 @@ class Plugin(indigo.PluginBase):
 
 			self.devList[devId]["states"][state]["shortName"]				= valuesDict["shortName"].replace(" ","_")
 
-			self.saveNow=True
+			self.saveNow 		= True
+			self.devIDSelected	= 0
 			self.preSelectDevices()
 
 			self.printConfigCALLBACK(printDevId=devId)
 		except  Exception, e:
 			if len(unicode(e)) > 5:
 				self.ML.myLog( errorType = u"bigErr", text ="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
-		valuesDict["showM"]=False          
+
+		valuesDict["showM"] = False          
 		if not anyOne: valuesDict["MSG"] ="no measure selected-- no variable will be cretaed"
 
 		return valuesDict
@@ -564,14 +609,10 @@ class Plugin(indigo.PluginBase):
 		self.checkcProfileEND()
 
 		self.stopConcurrentCounter = 1
-		serverPlugin = indigo.server.getPlugin(self.pluginId)
-		serverPlugin.restart(waitUntilDone=False)
 
 		self.sleep(1)
 		if self.quitNow !="":
 			indigo.server.log( u"runConcurrentThread stopping plugin due to:  ::::: " + self.quitNow + " :::::")
-			serverPlugin = indigo.server.getPlugin(self.pluginId)
-			serverPlugin.restart(waitUntilDone=False)
 
 		return
 
@@ -640,7 +681,7 @@ class Plugin(indigo.PluginBase):
 						continue
 						   
 				#_tagsTimes   =["thisHour","lastHour","thisDay","lastDay","thisWeek","lastWeek","thisMonth","lastMonth","last7Days"]
-				#_tagsMMA     =["Min","Max","DateMin","DateMax","Ave","Count","Count1"]
+				#_tagsMMA     =["Min","Max","DateMin","DateMax","Ave","Count","Count1","StdDev""]
 				ddd =self.devList[devID]["states"]
 				for state in ddd:
 
@@ -814,7 +855,7 @@ class Plugin(indigo.PluginBase):
 		dataOut 			= {}
 		dateErrorShown 		= False
 		for tag in self.dateLimits:
-			dataOut[tag] = {"Min": -987654321000.,"Max":987654321000.,"DateMin":"","DateMax":"","Count": 0.,"Count1":0,"Ave":0,"AveSimple":0}
+			dataOut[tag] = {"Min": -987654321000.,"Max":987654321000.,"DateMin":"","DateMax":"","Count": 0.,"Count1":0,"StdDev":0,"Ave":0,"AveSimple":0}
 		try:
 
 			nData = len(dataIn)
@@ -861,9 +902,10 @@ class Plugin(indigo.PluginBase):
 								dataOut[tag]["DateMax"] 			= date  				# datestamp
 
 								if not lastData: norm 				= (secondsEnd - self.dateLimits[tag][2])/detalSecTotal 
-								dataOut[tag]["Ave"]					= value * norm			# time weighted average
+								dataOut[tag]["Ave"]					= value*norm			# time weighted average
 								dataOut[tag]["Count"]				= 1    					# count
 								dataOut[tag]["AveSimple"]			= value					# sum for simple average
+								dataOut[tag]["StdDev"]				= value*value*norm		# std dev
 								if value >0: dataOut[tag]["Count1"]	+= 1					# count if > 0
 	
 							# regular datapoint in bin
@@ -880,7 +922,11 @@ class Plugin(indigo.PluginBase):
 								dataOut[tag]["Ave"]					+= value * norm		# time weighted average
 								dataOut[tag]["Count"]				+= 1				# count
 								dataOut[tag]["AveSimple"]			+= value 			# sum for simple average
+								dataOut[tag]["StdDev"]				+= value*value * norm# sum for simple average
 								if value >0: dataOut[tag]["Count1"] += 1				# count if > 0
+							#if tag == "lastHour":
+							#	self.ML.myLog(tag+ " value %.2f"% (value)+"  norm %.2f"%norm +"  v*n %.2f"%dataOut[tag]["Ave"] , destination="standard" )
+								
 						except Exception, e:
 							self.ML.myLog( text="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e))
 							self.ML.myLog( text=unicode(line))
@@ -897,8 +943,9 @@ class Plugin(indigo.PluginBase):
 							if not dateErrorShown:
 								self.ML.myLog(" date conversion error , bad format: "+self.timeFormatDisplay+"  %s"%e )
 								dateErrorShown = True
-							
-					dataOut[tag]["AveSimple"] = dataOut[tag]["AveSimple"]/max(1.,dataOut[tag]["Count"])    #  simple average
+					#self.ML.myLog(tag+ " StdDev %.1f"% (math.sqrt(dataOut[tag]["StdDev"]))+"   %.1f"%dataOut[tag]["Ave"], destination="standard" )
+					dataOut[tag]["StdDev"] 		= math.sqrt(abs(dataOut[tag]["StdDev"]  - dataOut[tag]["Ave"]**2)) #  std dev
+					dataOut[tag]["AveSimple"]	= dataOut[tag]["AveSimple"]/max(1.,dataOut[tag]["Count"])     #  simple average
 		except  Exception, e:
 			if len(unicode(e)) > 5:
 				self.ML.myLog( errorType = u"bigErr", text ="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )

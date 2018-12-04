@@ -1,3 +1,17 @@
+changes in V 7.8.6  @ 2018-12-04 
+==================  
+
+1. added standard deviation measure ( devStd )  
+
+2. improved menu error checking
+
+3. improved formatting of menus and printouts
+ 
+3. added option to select / deselect all 72 possible measures in 
+	meu define tracking ...    
+ 
+
+
 changes in V 7.8.5  @ 2018-12-02  
 ==================  
 
