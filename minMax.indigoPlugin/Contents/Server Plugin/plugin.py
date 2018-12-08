@@ -18,6 +18,7 @@ import copy
 import myLogPgms.myLogPgms 
 import logging
 import math
+import Queue
 
 import cProfile
 import pstats
@@ -32,8 +33,8 @@ the main loop check the sqllogger db every x minutes and build the min/max/avera
 device_state_Min  .. Max   Ave DateMin DateMax Count Count1 with the values. 
 '''
 
-_tagsTimes     =["thisHour","lastHour","thisDay","lastDay","thisWeek","lastWeek","thisMonth","lastMonth","last7Days"]
-_tagsMMA       =["Min","Max","DateMin","DateMax","Ave","Count","Count1","StdDev"]
+_timeWindows	=["thisHour","lastHour","thisDay","lastDay","thisWeek","lastWeek","thisMonth","lastMonth","last7Days"] #   ,"weekdays"]
+_MeasBins		=["Min","Max","DateMin","DateMax","Ave","Count","Count1","StdDev","Start","End"]
 
 ################################################################################
 class Plugin(indigo.PluginBase):
@@ -57,7 +58,6 @@ class Plugin(indigo.PluginBase):
 	
 ####-----------------   ---------
 	def startup(self):
-		global xxxxx
 
 		self.epoch = datetime.datetime(1970, 1, 1)
 
@@ -95,39 +95,8 @@ class Plugin(indigo.PluginBase):
 		self.ML = myLogPgms.myLogPgms.MLX()
 		self.setLogfile(unicode(self.pluginPrefs.get("logFileActive2", "standard")))
 
-		delID=[]
-		for devId in self.devList:
-			if "devOrVar" not in self.devList[devId]:
-				delID.append(devId)
-			if "states" not in self.devList[devId]:
-				delID.append(devId)
-		for devId in delID:
-			try:
-				del self.devList[devId]
-			except:
-				pass
-
-		for devId in self.devList:
-			#self.ML.myLog( text="devId devList "+ str(devId)+ " " +unicosde(self.devList[devId]) )
-			if "states" not in self.devList[devId]: continue
-			remState =[]
-			for state in self.devList[devId]["states"]:
-				if len(state)< 2:
-					remState.append(state)
-				if "ignoreLess"    not in self.devList[devId]["states"][state]:
-						self.devList[devId]["states"][state]["ignoreLess"]			= -9876543210.
-				if "ignoreGreater" not in self.devList[devId]["states"][state]:
-						self.devList[devId]["states"][state]["ignoreGreater"]		= +9876543210.
-				if "measures" not in self.devList[devId]["states"][state]:
-						self.devList[devId]["states"][state]["measures"] 			= {}
-				if "formatNumbers" not in self.devList[devId]["states"][state]:
-						self.devList[devId]["states"][state]["formatNumbers"] 		= "%.1f"
-				if "timeFormatDisplay" not in self.devList[devId]["states"][state]:
-						self.devList[devId]["states"][state]["timeFormatDisplay"] 	= self.timeFormatInternal
-				if "shortName" not in self.devList[devId]["states"][state]:
-						self.devList[devId]["states"][state]["shortName"] 			= ""
-			for state in remState:
-				del self.devList[devId]["states"][state]
+		self.cleandevList()
+		self.resetOldValues()
 
 		self.variFolderName			= self.pluginPrefs.get("variFolderName","minMax")
 		self.saveNow				= False
@@ -135,20 +104,73 @@ class Plugin(indigo.PluginBase):
 		self.devIDSelectedExist		= 0
 		self.devOrVarExist			= "Var"
 		self.devOrVar				= "Var"
-		self.stopConcurrentCounter	= 0
 		self.pluginPrefs["devList"]	= json.dumps(self.devList)
 		self.dateLimits				= [["2015-11-00-00:00:00","2015-12-00-00:00:00",0,0],["2015-12-00-00:00:00","2015-12-12-00:00:00",0,0]]
 		self.firstDate				= "2015-11-00-00:00:00"
-		self.hourLast				= 999 # last hour
-		self.dayLast				= 999 # last day of month
-		self.dayOfweekLast			= 999 # last day of week
-		self.weekLast				= 999 # last week
+		self.hourLast				= -99 # last hour
+		self.subscribeVariable		= False
+		self.subscribeDevice		= False
 
 		self.printConfigCALLBACK()
-		
-		
 
 		return
+
+
+	####-----------------    ---------
+	def cleandevList(self):
+		try:
+			delID=[]
+			for devId in self.devList:
+				if "devOrVar" not in self.devList[devId]:
+					delID.append(devId)
+				if "states" not in self.devList[devId]:
+					delID.append(devId)
+			for devId in delID:
+				try:
+					del self.devList[devId]
+				except:
+					pass
+
+			for devId in self.devList:
+				#self.ML.myLog( text="devId devList "+ str(devId)+ " " +unicosde(self.devList[devId]) )
+				if "states" not in self.devList[devId]: continue
+				remState =[]
+				for state in self.devList[devId]["states"]:
+					if len(state)< 2:
+						remState.append(state)
+					if "ignoreLess"    not in self.devList[devId]["states"][state]:
+							self.devList[devId]["states"][state]["ignoreLess"]			= -9876543210.
+					if "ignoreGreater" not in self.devList[devId]["states"][state]:
+							self.devList[devId]["states"][state]["ignoreGreater"]		= +9876543210.
+					if "measures" not in self.devList[devId]["states"][state]:
+							self.devList[devId]["states"][state]["measures"] 			= {}
+					if "formatNumbers" not in self.devList[devId]["states"][state]:
+							self.devList[devId]["states"][state]["formatNumbers"] 		= "%.1f"
+					if "timeFormatDisplay" not in self.devList[devId]["states"][state]:
+							self.devList[devId]["states"][state]["timeFormatDisplay"] 	= self.timeFormatInternal
+					if "shortName" not in self.devList[devId]["states"][state]:
+							self.devList[devId]["states"][state]["shortName"] 			= ""
+					delTW =[]
+					for TW in self.devList[devId]["states"][state]["measures"]:
+						if TW not in _timeWindows:
+							delTW.append(TW)
+						else:
+							delMes =[]
+							for MB in self.devList[devId]["states"][state]["measures"][TW]:
+								if MB not in _MeasBins:
+									delMes.append(MB)
+							for MB in delMes:
+								del self.devList[devId]["states"][state]["measures"][TW][MB]
+					for TW in delTW:
+						del self.devList[devId]["states"][state]["measures"][TW]
+
+				for state in remState:
+					del self.devList[devId]["states"][state]
+		except  Exception, e:
+			if len(unicode(e)) > 5:
+				self.ML.myLog( text= "cleandevList error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+
+
 
 ####-----------------   ---------
 	####-----------------    ---------
@@ -158,6 +180,7 @@ class Plugin(indigo.PluginBase):
 		elif self.logFileActive =="indigo":     self.logFile = self.indigoPath.split("Plugins/")[0]+"Logs/"+self.pluginId+"/plugin.log"
 		else:                                   self.logFile = self.userIndigoPluginDir +"plugin.log"
 		self.ML.myLogSet(debugLevel = self.debugLevel ,logFileActive=self.logFileActive, logFile = self.logFile, pluginSelf=self)
+		self.ML.myLog( text= "refresh Rate (how often SQL is read): %d[sec]"%(self.refreshRate), destination="standard")
 
 ####-----------------   ---------
 	def deviceStartComm(self, dev):
@@ -189,6 +212,9 @@ class Plugin(indigo.PluginBase):
 			indigo.variables.folder.create(self.variFolderName)
 		except:
 			pass
+
+		self.hourLast	= -99
+
 		return True, valuesDict
 
 
@@ -208,16 +234,16 @@ class Plugin(indigo.PluginBase):
 					for state in self.devList[devId]["states"]:
 						out = "%13.0f"%self.devList[devId]["states"][state]["ignoreLess"]+"%14.0f"%(self.devList[devId]["states"][state]["ignoreGreater"])+("'"+self.devList[devId]["states"][state]["formatNumbers"]+"'").rjust(8)+" "
 						measures = ""
-						for tt in self.devList[devId]["states"][state]["measures"]:
+						for TW in self.devList[devId]["states"][state]["measures"]:
 							ssLine = ""
-							for ss in self.devList[devId]["states"][state]["measures"][tt]:
-								##indigo.server.log( state+"  "+ tt+"  "+ss+" "+unicode(self.devList[devId]["states"][state]["measures"][tt][ss]))
-								if  self.devList[devId]["states"][state]["measures"][tt][ss]:
+							for MB in self.devList[devId]["states"][state]["measures"][TW]:
+								##indigo.server.log( state+"  "+ TW+"  "+MB+" "+unicode(self.devList[devId]["states"][state]["measures"][TW][MB]))
+								if  self.devList[devId]["states"][state]["measures"][TW][MB]:
 									if ssLine =="":
 										if measures !="":
 											ssLine +="\n ".ljust(len(header)+ len(indent))
-										ssLine += (tt+"-").ljust(11)
-									ssLine	+= ss+" "
+										ssLine += (TW+"-").ljust(11)
+									ssLine	+= MB+" "
 							measures += ssLine
 						if measures == "":
 							measures ="--- no measure selected, no variable will be created---"
@@ -238,10 +264,9 @@ class Plugin(indigo.PluginBase):
 		
 		valuesDict=indigo.Dict()
 		if menuId == "defineDeviceStates":
-			for tt in _tagsTimes:
-				for ss in _tagsMMA:
-					valuesDict[tt+ss]	= False
-				valuesDict[tt+"Date"]	= False
+			for TW in _timeWindows:
+				for mb in _MeasBins:
+					valuesDict[TW+mb]	= False
 			valuesDict["showM"]			= False          
 			valuesDict["ignoreGreater"]	= "+9876543210."
 			valuesDict["ignoreLess"]	= "-9876543210."
@@ -295,14 +320,15 @@ class Plugin(indigo.PluginBase):
 		self.devIDSelectedExist 	= 0
 		valuesDict["state"] = ""
 		self.preSelectDevices()
+		self.resetOldValues()
 		return valuesDict
 
 
 ####-----------------   ---------
 	def buttonSelectAllCALLBACK(self,valuesDict="",typeId=""):   
 		for val in valuesDict:
-			for tag in _tagsTimes:
-				if tag in val:
+			for TW in _timeWindows:
+				if TW in val:
 					valuesDict[val]= True
 					break
 		return valuesDict
@@ -310,8 +336,8 @@ class Plugin(indigo.PluginBase):
 ####-----------------   ---------
 	def buttonDeSelectAllCALLBACK(self,valuesDict="",typeId=""):   
 		for val in valuesDict:
-			for tag in _tagsTimes:
-				if tag in val:
+			for TW in _timeWindows:
+				if TW in val:
 					valuesDict[val]= False
 					break
 		return valuesDict
@@ -377,6 +403,12 @@ class Plugin(indigo.PluginBase):
 ####-----------------   ---------
 	def buttonConfirmStateCALLBACK(self,valuesDict="",typeId=""):               # Select only device/properties that are supported
 		devId= str(self.devIDSelected)
+
+		if len(str(self.devIDSelected)) < 2:
+			valuesDict["showM"] = False          
+			valuesDict["MSG"] ="please select Device" 
+			return valuesDict
+		
 		if self.devOrVar=="Var":
 			dev=indigo.variables[int(self.devIDSelected)]
 		else:
@@ -388,10 +420,11 @@ class Plugin(indigo.PluginBase):
 			valuesDict["MSG"] ="please select State" 
 			return valuesDict
 			
-		if devId not in  self.devList:
+		if devId not in self.devList:
 			self.devList[devId]={}
 			self.devList[devId]["states"]={}
 
+			
 		self.devList[devId]["devOrVar"]=self.devOrVar
 
 		if  "states" not in self.devList[devId]:
@@ -399,7 +432,7 @@ class Plugin(indigo.PluginBase):
 
 			
 		if  state not in self.devList[devId]["states"]:
-			self.devList[devId]["states"][state]={}
+			self.devList[devId]["states"][state] = {}
 
 		if  "measures" not in self.devList[devId]["states"][state]:
 			self.devList[devId]["states"][state]["measures"]		= {}
@@ -408,37 +441,43 @@ class Plugin(indigo.PluginBase):
 			self.devList[devId]["states"][state]["formatNumbers"]	= "%.1f"
 			self.devList[devId]["states"][state]["shortName"]		= ""
 			
-		for tt in _tagsTimes:
-			if tt not in self.devList[devId]["states"][state]["measures"]:
-				self.devList[devId]["states"][state]["measures"][tt] = {}
+		for TW in _timeWindows:
+			if TW not in self.devList[devId]["states"][state]["measures"]:
+				self.devList[devId]["states"][state]["measures"][TW] = {}
 				
-			for ss in _tagsMMA:
-				if ss not in self.devList[devId]["states"][state]["measures"][tt]:
-					self.devList[devId]["states"][state]["measures"][tt][ss] = False
+			for MB in _MeasBins:
+				if MB not in self.devList[devId]["states"][state]["measures"][TW]:
+					self.devList[devId]["states"][state]["measures"][TW][MB] = False
 
-		for tt in self.devList[devId]["states"][state]["measures"]:
-			TTS= self.devList[devId]["states"][state]["measures"][tt]
-			for ss in TTS:
-				if self.devList[devId]["states"][state]["measures"][tt][ss]:
-					valuesDict[tt+ss]= True
+		for TW in self.devList[devId]["states"][state]["measures"]:
+			for MB in self.devList[devId]["states"][state]["measures"][TW]:
+				if self.devList[devId]["states"][state]["measures"][TW][MB]:
+					valuesDict[TW+MB]= True
 				else:   
-					valuesDict[tt+ss]= False
-					
+					valuesDict[TW+MB]= False
+				
 
 
-		valuesDict["ignoreLess"]    = str(self.devList[devId]["states"][state]["ignoreLess"])
-		valuesDict["ignoreGreater"] = str(self.devList[devId]["states"][state]["ignoreGreater"])
+		valuesDict["ignoreLess"]	= str(self.devList[devId]["states"][state]["ignoreLess"])
+		valuesDict["ignoreGreater"]	= str(self.devList[devId]["states"][state]["ignoreGreater"])
 		valuesDict["formatNumbers"] =    (self.devList[devId]["states"][state]["formatNumbers"])
 		valuesDict["shortName"] 	=    (self.devList[devId]["states"][state]["shortName"])
-		valuesDict["showM"]			= True          
+		valuesDict["showM"]			= True 
+		self.resetOldValues()  
+       
 		return valuesDict                        
 
 
 ####-----------------   ---------
 	def buttonConfirmCALLBACK(self,valuesDict="",typeId=""):                # Select only device/properties that are supported
+
+		anyOne = False
 		try:
 			valuesDict["MSG"] = "ok"
 			devId= str(self.devIDSelected)
+			if len(devId) < 3:
+				valuesDict["MSG"] = "please select device"
+				return valuesDict
 			
 			if self.devOrVar=="Var":
 				dev=indigo.variables[int(self.devIDSelected)]
@@ -470,16 +509,15 @@ class Plugin(indigo.PluginBase):
 				self.devList[devId]["states"][state]["formatNumbers"]	= "%.1f"
 				self.devList[devId]["states"][state]["shortName"]		= ""
 				
-			anyOne = False
-			for tt in  _tagsTimes:
+			for TW in  _timeWindows:
 				use=False
-				for ss in _tagsMMA: 
-					if valuesDict[tt+ss]:
+				for MB in _MeasBins: 
+					if valuesDict[TW+MB]:
 						#self.ML.myLog( text= unicode(self.devList[devId]) )
-						self.devList[devId]["states"][state]["measures"][tt][ss]=True
+						self.devList[devId]["states"][state]["measures"][TW][MB]=True
 						anyOne = True
 					else:    
-						self.devList[devId]["states"][state]["measures"][tt][ss]=False
+						self.devList[devId]["states"][state]["measures"][TW][MB]=False
 
 			try: 	self.devList[devId]["states"][state]["ignoreLess"]		= float(valuesDict["ignoreLess"])
 			except:	pass
@@ -504,6 +542,15 @@ class Plugin(indigo.PluginBase):
 		return valuesDict
 
 
+	####-----------------  ---------
+	def buttonrefreshDataNowCALLBACKaction(self,action):
+		return self.buttonrefreshDataNowCALLBACK(valuesDict=action.props)
+
+	####-----------------  ---------
+	def buttonrefreshDataNowCALLBACK(self,valuesDict=""):
+		self.hourLast	= -99
+		self.ML.myLog( text="data refresh requested")
+		return
 
 	###########################	   cProfile stuff   ############################ START
 	####-----------------  ---------
@@ -600,135 +647,233 @@ class Plugin(indigo.PluginBase):
 		return
 	###########################	   cProfile stuff   ############################ END
 
+####-----------------   var update ==> trigger sql run          ---------
+	def variableUpdated(self, orig, new):
+		#self.ML.myLog( text="variable data refresh "+ new.name)
+		if str(new.id) not in self.devList: return 
+		self.QList.put(str(new.id))
+		#self.ML.myLog( text="variable data refresh requested due to new data in "+ new.name)
+	
+####-----------------   dev update ==> trigger sql run          ---------
+	def deviceUpdated(self, orig, new):
+		if str(new.id) not in self.devList: return 
+		#self.ML.myLog( text="device data refresh requested due to new data in "+ new.name)
+		for state in self.devList[str(new.id)]["states"]:
+			if state in new.states and new.states[state] != orig.states[state]:
+				#self.ML.myLog( text="device data refresh requested due to new data in "+ new.name+"  "+unicode(new.states[state] ))
+				self.QList.put(str(new.id))
+				break
 
 
 ####-----------------   main loop          ---------
 	def runConcurrentThread(self):
 
+		self.QList = Queue.Queue()
 		self.dorunConcurrentThread()
 		self.checkcProfileEND()
 
-		self.stopConcurrentCounter = 1
 
 		self.sleep(1)
 		if self.quitNow !="":
 			indigo.server.log( u"runConcurrentThread stopping plugin due to:  ::::: " + self.quitNow + " :::::")
 
-		return
+		self.quitNow =""
+
+		exit()
 
 ####-----------------   main loop            ---------
 	def dorunConcurrentThread(self): 
 
 		
-		nextQuerry				= time.time()   -1
-		lastSave				= time.time()
+		self.timerCheckConfig 		= 0
+		self.nextQuerry				= 0
+		lastSave					= 0
+		nextMinTime 				= 20
+		lastSqlTime					= 0
+		self.hourLast				= -99
+		allUpdates					= False
 		self.preSelectDevices()
+
 		try:
 			while self.quitNow =="":
+
+				nowTT	= time.time()
+				cond1	= ((nowTT- self.nextQuerry > self.refreshRate)  or self.hourLast == -99)
+				cond2	= not self.QList.empty()
+				cond3	= nowTT - lastSqlTime > nextMinTime
+				#self.ML.myLog( text="timers: " +str(cond1) +"  "+str(cond2) +"  "+str(cond3) +"  "+str(allUpdates))
+				if  (cond1 or cond2) and cond3:
+					if nowTT - lastSqlTime > nextMinTime: 
+						dd= datetime.datetime.now()
+						day 		=dd.day         # day in month
+						wDay		=dd.weekday()   # day of week
+						hourNow		=dd.hour        # hour in day
+
+						if hourNow != self.hourLast: # recalculate the limits
+							self.doDateLimits() 
+							self.preSelectDevices()
+							self.resetOldValues()
+							self.hourLast = -99
+
+						if self.saveNow or lastSave +600 < nowTT:
+							self.pluginPrefs["devList"] = json.dumps(self.devList)
+							self.saveNow=False
+
+						allUpdates = self.fillVariables(allUpdates, cond1)
+							
+						self.hourLast	= hourNow 
+						self.nextQuerry	= nowTT 
+						lastSqlTime 	= nowTT
+
 				for ii in range(20):
 					self.sleep(1)
+					if self.hourLast ==-99: break
+				self.checkConfig()
+				self.checkcProfile()
 					
-				now=time.time()
-
-				if now < nextQuerry: 		continue
-
-				dd= datetime.datetime.now()
-				day =dd.day         # day in month
-				wDay=dd.weekday()   # day of week
-				hour=dd.hour        # hour in day
-
-				if hour != self.hourLast: # recalculate the limits
-					self.doDateLimits() 
-					self.hourLast= hour 
-					self.preSelectDevices()  
-
-				if self.saveNow or lastSave +600 < now:
-					self.pluginPrefs["devList"] =json.dumps(self.devList)
-					self.saveNow=False
-
-
-				self.fillVariables()
-
-				nextQuerry= now+self.refreshRate        
-	
 
 				
-		except : pass
+		except Exception, e:
+			if len(unicode(e)) > 5:
+				self.ML.myLog( errorType = u"bigErr", text ="checkoldValues: error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+
 		self.pluginPrefs["devList"] =json.dumps(self.devList)
 		return
 
 
+####-----------------   ---------
+	def checkConfig(self):
+		if time.time() - self.timerCheckConfig < 100: return
+		self.timerCheckConfig = time.time()
+		try:
+			nVars = 0
+			nDevs = 0
+			for devId in self.devList:
+				if self.devList[devId]["devOrVar"] == "Var":
+					if not self.subscribeVariable: indigo.variables.subscribeToChanges()
+					self.subscribeVariable = True
+					nVars +=1
+					if nVars == 1: self.ML.myLog(text ="subscribing to variable changes")
+				else:
+					if not self.subscribeDevice: indigo.devices.subscribeToChanges()
+					self.subscribeDevice = True
+					nDevs +=1
+					if nDevs ==1: self.ML.myLog(text ="subscribing to device changes")
+					
+			if nVars ==0 and self.subscribeVariable: self.quitNow =" restart due to no variables subcriptions needed"
+			if nDevs ==0 and self.subscribeDevice:  self.quitNow =" restart due to no variables subcriptions needed"
+		except  Exception, e:
+			if len(unicode(e)) > 5:
+				self.ML.myLog( errorType = u"bigErr", text ="checkoldValues: error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+
+
+
+
+####-----------------   ---------
+	def resetOldValues(self):
+		try:
+				
+			self.oldValues = {}
+			for devId in self.devList:
+				self.oldValues[devId] = {}
+				for state in self.devList[devId]["states"]:
+					self.oldValues[devId][state] = {"sum":-1,"nv":-1}
+
+		except  Exception, e:
+			if len(unicode(e)) > 5:
+				self.ML.myLog( errorType = u"bigErr", text ="checkoldValues: error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+
 
 ####-----------------  do the calculations and sql statements  ---------
-	def fillVariables(self):
+	def fillVariables(self, allUpdatesLast, cond1):
 
 		delList =[]
+		qDevIds =[]
+		allUpdates = False
 		try:
-			for devID in self.devList:
-				if int(devID) >0:
+			if allUpdatesLast and not cond1: 
+				while not self.QList.empty():
+					qDevIds.append(self.QList.get())
+				try:	self.QList.task_done()
+				except:	pass
+
+			if len(qDevIds) ==0: allUpdates = True
+			else:				 allUpdates = False
+
+			#self.ML.myLog( text ="qDevIds: " +unicode(qDevIds) )
+			for devId in self.devList:
+				#self.ML.myLog( text ="devId: test  " +unicode(devId) )
+				if not( len(qDevIds) == 0 or devId in qDevIds ): continue
+				
+				if int(devId) >0:
 					try:
-						if self.devList[devID]["devOrVar"]=="Var":
-							devName= indigo.variables[int(devID)].name
+						if self.devList[devId]["devOrVar"]=="Var":
+							devName= indigo.variables[int(devId)].name
 						else:                            
-							devName= indigo.devices[int(devID)].name
+							devName= indigo.devices[int(devId)].name
 					except  Exception, e:
 						if unicode(e).find("timeout waiting") > -1:
 							self.ML.myLog( text = u"in Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
 							self.ML.myLog( text ="communication to indigo is interrupted")
 							return
-						self.ML.myLog( text=" error; device with indigoID = "+ str(devID) +" does not exist, removing from tracking") 
-						delList.append(devID)
+						self.ML.myLog( text=" error; device with indigoID = "+ str(devId) +" does not exist, removing from tracking") 
+						delList.append(devId)
 						continue
 						   
-				#_tagsTimes   =["thisHour","lastHour","thisDay","lastDay","thisWeek","lastWeek","thisMonth","lastMonth","last7Days"]
-				#_tagsMMA     =["Min","Max","DateMin","DateMax","Ave","Count","Count1","StdDev""]
-				ddd =self.devList[devID]["states"]
-				for state in ddd:
+				#_timeWindows   =["thisHour","lastHour","thisDay","lastDay","thisWeek","lastWeek","thisMonth","lastMonth","last7Days"]
+				#_MeasBins     =["Min","Max","DateMin","DateMax","Ave","Count","Count1","StdDev""]
 
-					if self.devList[devID]["states"][state]["shortName"] !="":
-						varName	= self.devList[devID]["states"][state]["shortName"]
+				states =self.devList[devId]["states"]
+				for state in states:
+					params				= states[state]
+					if params["shortName"] !="":
+						varName	= params["shortName"]
 					else:
 						varName	= devName.replace(" ","_")+"_"+state.replace(" ","_")
 						
-					params		= ddd[state]
-					dataSQL		= self.doSQL(devID,state,self.devList[devID]["devOrVar"])
-					dataClean	= self.removeDoublesInSQL(dataSQL,ddd[state]["ignoreLess"],ddd[state]["ignoreGreater"])
-					values		= self.calculate(dataClean)
+					dataSQL				= self.doSQL(devId,state,self.devList[devId]["devOrVar"])
+					dataClean,sum,nv	= self.removeDoublesInSQL(dataSQL, params["ignoreLess"],params["ignoreGreater"])
+					if sum == self.oldValues[devId][state]["sum"] and nv == self.oldValues[devId][state]["nv"] and self.hourLast != -99: 
+						continue
+						
+					self.oldValues[devId][state]["sum"] = sum
+					self.oldValues[devId][state]["nv"]  = nv
+					values								= self.calculate(dataClean)
 
-					if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text ="variName "+vn0)
+					if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text ="variName "+varName)
 					#if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text ="dataSQL   " +unicode(dataSQL)[0:500])
 					#if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text ="dataClean " +unicode(dataClean)[0:500])
 					if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text ="values    " +unicode(values)[0:500])
 					if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text =";   state: "+ state+" params: "+unicode(params)+" "+unicode(values)[0:30])
 
-					for tag in values:
-						if tag not in params["measures"]: continue
+					for TW in values:
+						if TW not in params["measures"]: continue
 						
-						value=values[tag]
-						if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text ="tag    " + tag+" "+unicode(value))
+						value=values[TW]
+						if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text ="TW    " + TW+" "+unicode(value))
 						
-						for mma in _tagsMMA:
-							if mma not in params["measures"][tag]: continue
-							if not params["measures"][tag][mma]: continue
+						for MB in _MeasBins:
+							if MB not in params["measures"][TW]:	continue
+							if not params["measures"][TW][MB]:	continue
 
-							try: 	vari = indigo.variables[varName+"_"+tag+"_"+mma]
+							try:	vari = indigo.variables[varName+"_"+TW+"_"+MB]
 							except:
-								try:	indigo.variable.create(varName+"_"+tag+"_"+mma,      "", self.variFolderName)
+								try:	indigo.variable.create(varName+"_"+TW+"_"+MB,      "", self.variFolderName)
 								except:	pass
 
-							if  mma.find("Count")>-1:
-								indigo.variable.updateValue(varName+"_"+tag+"_"+mma,          ("%d"%(value[mma])).strip())
-							elif mma.find("Date")>-1:
-								indigo.variable.updateValue(varName+"_"+tag+"_"+mma,          value[mma].strip())
+							if  MB.find("Count")>-1:
+								indigo.variable.updateValue(varName+"_"+TW+"_"+MB,          ("%d"%(value[MB])).strip())
+							elif MB.find("Date")>-1:
+								indigo.variable.updateValue(varName+"_"+TW+"_"+MB,          value[MB].strip())
 							else:
-								indigo.variable.updateValue(varName+"_"+tag+"_"+mma,          (params["formatNumbers"]%(value[mma])).strip())
+								indigo.variable.updateValue(varName+"_"+TW+"_"+MB,          (params["formatNumbers"]%(value[MB])).strip())
 								
-			for devID in delList:
-				del self.devList[devID]
+			for devId in delList:
+				del self.devList[devId]
 		except  Exception, e:
 			if len(unicode(e)) > 5:
 				self.ML.myLog( errorType = u"bigErr", text ="fillVariables: error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
-
+		return allUpdates
 
 ####-----------------  do the calculations and sql statements  ---------
 	def doDateLimits(self):
@@ -745,54 +890,58 @@ class Plugin(indigo.PluginBase):
 			self.dateLimits	= {}
 			self.firstDate 	= (dd-datetime.timedelta(dd.day+31,hours=dd.hour)).strftime(self.timeFormatInternal)      # last day of 2 months ago so that we always get 2 months
 
-			hour0= dd-datetime.timedelta(minutes=dd.minute,seconds=dd.second)
-			dh0=hour0.strftime(self.timeFormatInternal)
-			dh1=(hour0+datetime.timedelta(hours=1)).strftime(self.timeFormatInternal)
+			hour0	= dd-datetime.timedelta(minutes=dd.minute,seconds=dd.second)
+			day0	= dd-datetime.timedelta(hours=dd.hour,minutes=dd.minute,seconds=dd.second)
+			day0End	= day0+datetime.timedelta(hours=24)
+			day0EndF= (day0End).strftime(self.timeFormatInternal)
+
+			dh0		= hour0.strftime(self.timeFormatInternal)
+			dh1		= (hour0+datetime.timedelta(hours=1)).strftime(self.timeFormatInternal)
 			self.dateLimits["thisHour"] = [dh0,dh1,0,0,0]
 
-			dh1=dh0
-			dh0=(hour0-datetime.timedelta(hours=1)).strftime(self.timeFormatInternal)
+			dh1		= dh0
+			dh0		= (hour0-datetime.timedelta(hours=1)).strftime(self.timeFormatInternal)
 			self.dateLimits["lastHour"] = [dh0,dh1,0,0,0]
 
-			day0= dd-datetime.timedelta(hours=dd.hour,minutes=dd.minute,seconds=dd.second)
-			dh0=day0.strftime(self.timeFormatInternal)
-			dh1=(day0+datetime.timedelta(hours=24)).strftime(self.timeFormatInternal)
+			dh0		= day0.strftime(self.timeFormatInternal)
+			dh1		= day0EndF
 			self.dateLimits["thisDay"] = [dh0,dh1,0,0,0]
 
-			dh1=day0.strftime(self.timeFormatInternal)
-			dh0=(day0-datetime.timedelta(days=1)).strftime(self.timeFormatInternal)
+			dh1		= day0.strftime(self.timeFormatInternal)
+			dh0		= (day0-datetime.timedelta(days=1)).strftime(self.timeFormatInternal)
 			self.dateLimits["lastDay"] = [dh0,dh1,0,0,0]
 
-			week0= dd-datetime.timedelta(days=dd.weekday(),hours=dd.hour,minutes=dd.minute,seconds=dd.second)
-			dh0=week0.strftime(self.timeFormatInternal)
-			dh1=(dd+datetime.timedelta(hours=24)).strftime(self.timeFormatInternal)
+			week0	= dd-datetime.timedelta(days=dd.weekday(),hours=dd.hour,minutes=dd.minute,seconds=dd.second)
+			dh0		= week0.strftime(self.timeFormatInternal)
+			weekend  =week0+datetime.timedelta(days=7)
+			dh1		= weekend.strftime(self.timeFormatInternal)
 			self.dateLimits["thisWeek"] = [dh0,dh1,0,0,0]
 
-			dh1=week0.strftime(self.timeFormatInternal)
-			dh0=(week0-datetime.timedelta(days=7)).strftime(self.timeFormatInternal)
+			dh1		= week0.strftime(self.timeFormatInternal)
+			dh0		= (week0-datetime.timedelta(days=7)).strftime(self.timeFormatInternal)
 			self.dateLimits["lastWeek"] = [dh0,dh1,0,0,0]
 
-			month0= dd-datetime.timedelta(days=dd.day,hours=dd.hour,minutes=dd.minute,seconds=dd.second)
-			dh0=month0.strftime(self.timeFormatInternal)
-			dh1=(dd+datetime.timedelta(hours=24)).strftime(self.timeFormatInternal)
+			month0	= dd-datetime.timedelta(days=dd.day-1,hours=dd.hour,minutes=dd.minute,seconds=dd.second)
+			dh0		= month0.strftime(self.timeFormatInternal)
+			monthEnd= month0+datetime.timedelta(days=31)
+			if monthEnd.day < 5:
+				monthEnd = monthEnd-datetime.timedelta(days=monthEnd.day-1)
+			dh1		= monthEnd.strftime(self.timeFormatInternal)
 			self.dateLimits["thisMonth"] = [dh0,dh1,0,0,0]
 
-			dh1=month0.strftime(self.timeFormatInternal)
-			dh0=(month0-datetime.timedelta(days=1))
-			dh0=(month0-datetime.timedelta(days=dh0.day)).strftime(self.timeFormatInternal)    
+			dh1		= month0.strftime(self.timeFormatInternal)
+			d0		= (month0-datetime.timedelta(days=1))
+			dh0 	= (month0-datetime.timedelta(days=d0.day)).strftime(self.timeFormatInternal)    
 			self.dateLimits["lastMonth"] = [dh0,dh1,0,0,0]
 
-			day0= dd
-			day7= day0 - datetime.timedelta(days=7,hours=dd.hour,minutes=dd.minute,seconds=dd.second) 
-			dh1=dd.strftime(self.timeFormatInternal)
-			dh0=day7.strftime(self.timeFormatInternal)
+			dh0		= (dd - datetime.timedelta(days=7,hours=dd.hour,minutes=dd.minute,seconds=dd.second) ).strftime(self.timeFormatInternal)
+			dh1		= day0EndF
 			self.dateLimits["last7Days"] = [dh0,dh1,0,0,0]
 
-
-			for tag in self.dateLimits:
-				self.dateLimits[tag][2] = (datetime.datetime.strptime(self.dateLimits[tag][0], self.timeFormatInternal)-self.epoch).total_seconds()
-				self.dateLimits[tag][3] = (datetime.datetime.strptime(self.dateLimits[tag][1], self.timeFormatInternal)-self.epoch).total_seconds()
-				self.dateLimits[tag][4] = max(1.,self.dateLimits[tag][3] - self.dateLimits[tag][2])
+			for TW in self.dateLimits:
+				self.dateLimits[TW][2] = (datetime.datetime.strptime(self.dateLimits[TW][0], self.timeFormatInternal)-self.epoch).total_seconds()
+				self.dateLimits[TW][3] = (datetime.datetime.strptime(self.dateLimits[TW][1], self.timeFormatInternal)-self.epoch).total_seconds()
+				self.dateLimits[TW][4] = max(1.,self.dateLimits[TW][3] - self.dateLimits[TW][2])
 
 			if self.ML.decideMyLog(u"Loop"): 
 				self.ML.myLog( text ="first-Date:  "+unicode(self.firstDate))
@@ -854,8 +1003,8 @@ class Plugin(indigo.PluginBase):
 		addedSecsForLastBin	= 90.
 		dataOut 			= {}
 		dateErrorShown 		= False
-		for tag in self.dateLimits:
-			dataOut[tag] = {"Min": -987654321000.,"Max":987654321000.,"DateMin":"","DateMax":"","Count": 0.,"Count1":0,"StdDev":0,"Ave":0,"AveSimple":0}
+		for TW in self.dateLimits:
+			dataOut[TW] = {"Min": -987654321000.,"Max":987654321000.,"DateMin":"","DateMax":"","Count": 0.,"Count1":0,"StdDev":0,"Ave":0,"AveSimple":0}
 		try:
 
 			nData = len(dataIn)
@@ -884,68 +1033,72 @@ class Plugin(indigo.PluginBase):
 						secondsEndD	= lastSecInData +addedSecsForLastBin # last measurement point + 90 secs 
 						dateNext 	= "9999-12-01-12:33:12"
 
-					for tag in self.dateLimits:
+					for TW in self.dateLimits:
 						try:
-							if dateNext < self.dateLimits[tag][0]: continue
+							if dateNext < self.dateLimits[TW][0]: 					continue
+							if dateNext > self.dateLimits[TW][1] and not lastData: continue
 
-#							_tagsMMA       =["Min","Max","DateMin","DateMax","Ave","Count","Count1"]
+#							_MeasBins       =["Min","Max","DateMin","DateMax","Ave","Count","Count1"]
 						#                         # of seconds in bin                                     +90secs    last sec in bin           fist sec in bin  == dont take whole bin otherwise last value is overweighted
-							detalSecTotal	= max( 1., min(self.dateLimits[tag][4],   min(lastSecInData+addedSecsForLastBin, self.dateLimits[tag][3]) - self.dateLimits[tag][2]  ) )
-							secondsEnd   	= min(secondsEndD,  self.dateLimits[tag][3]) 
+							detalSecTotal	= max( 1., min(self.dateLimits[TW][4],   min(lastSecInData+addedSecsForLastBin, self.dateLimits[TW][3]) - self.dateLimits[TW][2]  ) )
+							secondsEnd   	= min(secondsEndD,  self.dateLimits[TW][3]) 
 							# first data point?
 							norm = 1.0
-							if  date  < self.dateLimits[tag][0] and dataOut[tag]["Count"] <= 1:  ## use last below date range?
-								dataOut[tag]["Min"] 				= value 				# min
-								dataOut[tag]["DateMin"] 			= date  				# datestamp
+							if  (date  < self.dateLimits[TW][0] and dataOut[TW]["Count"] <= 1) or dataOut[TW]["Count"] ==0:  ## use last below date range?
+								dataOut[TW]["Start"] 				= value 				# Start value
+								dataOut[TW]["End"] 					= value 				# 
+								dataOut[TW]["Min"] 					= value 				# min
+								dataOut[TW]["DateMin"] 				= date  				# datestamp
 
-								dataOut[tag]["Max"] 				= value 				# max 
-								dataOut[tag]["DateMax"] 			= date  				# datestamp
+								dataOut[TW]["Max"] 					= value 				# max 
+								dataOut[TW]["DateMax"] 				= date  				# datestamp
 
-								if not lastData: norm 				= (secondsEnd - self.dateLimits[tag][2])/detalSecTotal 
-								dataOut[tag]["Ave"]					= value*norm			# time weighted average
-								dataOut[tag]["Count"]				= 1    					# count
-								dataOut[tag]["AveSimple"]			= value					# sum for simple average
-								dataOut[tag]["StdDev"]				= value*value*norm		# std dev
-								if value >0: dataOut[tag]["Count1"]	+= 1					# count if > 0
+								if not lastData: norm 				= (secondsEnd - self.dateLimits[TW][2])/detalSecTotal 
+								dataOut[TW]["Ave"]					= value*norm			# time weighted average
+								dataOut[TW]["Count"]				= 1    					# count
+								dataOut[TW]["AveSimple"]			= value					# sum for simple average
+								dataOut[TW]["StdDev"]				= value*value*norm		# std dev
+								if value >0: dataOut[TW]["Count1"]	+= 1					# count if > 0
 	
 							# regular datapoint in bin
-							if date  > self.dateLimits[tag][0] and  date <=  self.dateLimits[tag][1]:  ## in date range?
-								if dataOut[tag]["Min"] > value:
-									dataOut[tag]["Min"] 			= value				# min 
-									dataOut[tag]["DateMin"] 		= date				# datestamp
+							if date  > self.dateLimits[TW][0] and  date <=  self.dateLimits[TW][1]:  ## in date range?
+								if dataOut[TW]["Min"] > value:
+									dataOut[TW]["Min"] 				= value				# min 
+									dataOut[TW]["DateMin"] 			= date				# datestamp
 
-								if dataOut[tag]["Max"] < value:
-									dataOut[tag]["Max"] 			= value				# max  
-									dataOut[tag]["DateMax"]			= date				# datestamp
+								if dataOut[TW]["Max"] < value:
+									dataOut[TW]["Max"] 				= value				# max  
+									dataOut[TW]["DateMax"]			= date				# datestamp
 	
+								dataOut[TW]["End"] 					= value 				# min
 								norm 								= (secondsEnd - secondsStartD)/detalSecTotal
-								dataOut[tag]["Ave"]					+= value * norm		# time weighted average
-								dataOut[tag]["Count"]				+= 1				# count
-								dataOut[tag]["AveSimple"]			+= value 			# sum for simple average
-								dataOut[tag]["StdDev"]				+= value*value * norm# sum for simple average
-								if value >0: dataOut[tag]["Count1"] += 1				# count if > 0
-							#if tag == "lastHour":
-							#	self.ML.myLog(tag+ " value %.2f"% (value)+"  norm %.2f"%norm +"  v*n %.2f"%dataOut[tag]["Ave"] , destination="standard" )
+								dataOut[TW]["Ave"]					+= value * norm		# time weighted average
+								dataOut[TW]["Count"]				+= 1				# count
+								dataOut[TW]["AveSimple"]			+= value 			# sum for simple average
+								dataOut[TW]["StdDev"]				+= value*value * norm# sum for simple average
+								if value >0: dataOut[TW]["Count1"] += 1				# count if > 0
+							#if TW == "lastHour":
+							#	self.ML.myLog(TW+ " value %.2f"% (value)+"  norm %.2f"%norm +"  v*n %.2f"%dataOut[TW]["Ave"] , destination="standard" )
 								
 						except Exception, e:
 							self.ML.myLog( text="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e))
 							self.ML.myLog( text=unicode(line))
 							self.ML.myLog( text=unicode(value))
 							continue            
-				for tag in self.dateLimits:
-					if  dataOut[tag]["DateMin"] !="" and dataOut[tag]["DateMin"] <   self.dateLimits[tag][0]: dataOut[tag]["DateMin"] = self.dateLimits[tag][0]      
-					if  dataOut[tag]["DateMax"] !="" and dataOut[tag]["DateMax"] <   self.dateLimits[tag][0]: dataOut[tag]["DateMax"] = self.dateLimits[tag][0]
+				for TW in self.dateLimits:
+					if  dataOut[TW]["DateMin"] !="" and dataOut[TW]["DateMin"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMin"] = self.dateLimits[TW][0]      
+					if  dataOut[TW]["DateMax"] !="" and dataOut[TW]["DateMax"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMax"] = self.dateLimits[TW][0]
 					if self.timeFormatInternal != self.timeFormatDisplay:
 						try:
-							dataOut[tag]["DateMin"] = (datetime.datetime.strptime(dataOut[tag]["DateMin"],self.timeFormatInternal)).strftime(self.timeFormatDisplay)
-							dataOut[tag]["DateMax"] = (datetime.datetime.strptime(dataOut[tag]["DateMax"],self.timeFormatInternal)).strftime(self.timeFormatDisplay)
+							dataOut[TW]["DateMin"] = (datetime.datetime.strptime(dataOut[TW]["DateMin"],self.timeFormatInternal)).strftime(self.timeFormatDisplay)
+							dataOut[TW]["DateMax"] = (datetime.datetime.strptime(dataOut[TW]["DateMax"],self.timeFormatInternal)).strftime(self.timeFormatDisplay)
 						except Exception, e:
 							if not dateErrorShown:
 								self.ML.myLog(" date conversion error , bad format: "+self.timeFormatDisplay+"  %s"%e )
 								dateErrorShown = True
-					#self.ML.myLog(tag+ " StdDev %.1f"% (math.sqrt(dataOut[tag]["StdDev"]))+"   %.1f"%dataOut[tag]["Ave"], destination="standard" )
-					dataOut[tag]["StdDev"] 		= math.sqrt(abs(dataOut[tag]["StdDev"]  - dataOut[tag]["Ave"]**2)) #  std dev
-					dataOut[tag]["AveSimple"]	= dataOut[tag]["AveSimple"]/max(1.,dataOut[tag]["Count"])     #  simple average
+					#self.ML.myLog(TW+ " StdDev %.1f"% (math.sqrt(dataOut[TW]["StdDev"]))+"   %.1f"%dataOut[TW]["Ave"], destination="standard" )
+					dataOut[TW]["StdDev"] 		= math.sqrt(abs(dataOut[TW]["StdDev"]  - dataOut[TW]["Ave"]**2)) #  std dev
+					dataOut[TW]["AveSimple"]	= dataOut[TW]["AveSimple"]/max(1.,dataOut[TW]["Count"])     #  simple average
 		except  Exception, e:
 			if len(unicode(e)) > 5:
 				self.ML.myLog( errorType = u"bigErr", text ="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
@@ -956,6 +1109,8 @@ class Plugin(indigo.PluginBase):
 ####----------------- prep sql return data  ---------
 	def removeDoublesInSQL(self,dataLines,ignoreLess,ignoreGreater):    # remove doubles same date/timestamp            
 		dataOut=[]
+		sum 	= 0
+		nValues	= 0
 		try:
 			dataIn=dataLines.split("\n")
 			t= dataIn[0].split(";")
@@ -970,6 +1125,8 @@ class Plugin(indigo.PluginBase):
 				value=0.
 			else:
 				dataOut.append((value,date))
+				nValues += 1
+				sum     += value 
 
 			for line in dataIn:
 				if len(line) < 20: continue
@@ -992,16 +1149,18 @@ class Plugin(indigo.PluginBase):
 				value=v
 				date=line[0]
 				dataOut.append((value,date))
+				sum 	+= value
+				nValues +=1
 
 			if len(dataOut) ==0:
 				dataOut=[[0.,""]]
-         
+
 		except  Exception, e:
 			if len(unicode(e)) > 5:
 				self.ML.myLog( errorType = u"bigErr", text ="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
 		##indigo.server.log("dataOut"+unicode(dataOut))
 
-		return dataOut
+		return dataOut, sum, nValues
 
 
 ####-----------------   ---------

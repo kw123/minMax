@@ -51,6 +51,8 @@
             <Field id="thisHourCount"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="thisHourCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="thisHourStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
+            <Field id="thisHourStart"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Start Value:</Label></Field>
+            <Field id="thisHourEnd"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -End Value:</Label></Field>
 
             <Field id="lastHourMin"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastHour -Min Value:</Label></Field>
             <Field id="lastHourMax"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
@@ -60,6 +62,8 @@
             <Field id="lastHourCount"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="lastHourCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="lastHourStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
+            <Field id="lastHourStart"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Start Value:</Label></Field>
+            <Field id="lastHourEnd"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -End Value:</Label></Field>
 
             <Field id="thisDayMin"     visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisDay -Min Value:</Label></Field>
             <Field id="thisDayMax"     visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
@@ -69,6 +73,8 @@
             <Field id="thisDayCount"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="thisDayCount1"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="thisDayStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
+            <Field id="thisDayStart"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Start Value:</Label></Field>
+            <Field id="thisDayEnd"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -End Value:</Label></Field>
 
             <Field id="lastDayMin"     visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastDay -Min Value:</Label></Field>
             <Field id="lastDayMax"     visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
@@ -78,6 +84,8 @@
             <Field id="lastDayCount"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="lastDayCount1"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="lastDayStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
+            <Field id="lastDayStart"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Start Value:</Label></Field>
+            <Field id="lastDayEnd"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -End Value:</Label></Field>
 
             <Field id="last7DaysMin"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>last 7 Days -Min Value:</Label></Field>
             <Field id="last7DaysMax"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
@@ -87,6 +95,8 @@
             <Field id="last7DaysCount"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="last7DaysCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="last7DaysStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
+            <Field id="last7DaysStart"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Start Value:</Label></Field>
+            <Field id="last7DaysEnd"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -End Value:</Label></Field>
 
             <Field id="thisWeekMin"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisWeek -Min Value:</Label></Field>
             <Field id="thisWeekMax"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
@@ -96,6 +106,8 @@
             <Field id="thisWeekCount"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="thisWeekCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="thisWeekStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
+            <Field id="thisWeekStart"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Start Value:</Label></Field>
+            <Field id="thisWeekEnd"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -End Value:</Label></Field>
 
             <Field id="lastWeekMin"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastWeek -Min Value:</Label></Field>
             <Field id="lastWeekMax"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
@@ -105,7 +117,9 @@
             <Field id="lastWeekCount"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="lastWeekCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="lastWeekStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
-            
+            <Field id="lastWeekStart"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Start Value:</Label></Field>
+            <Field id="lastWeekEnd"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -End Value:</Label></Field>
+
             <Field id="thisMonthMin"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisMonth -Min Value:</Label></Field>
             <Field id="thisMonthMax"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
             <Field id="thisMonthAve"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Ave Value:</Label></Field>
@@ -114,6 +128,8 @@
             <Field id="thisMonthCount" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="thisMonthCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="thisMonthStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
+            <Field id="thisMonthStart"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Start Value:</Label></Field>
+            <Field id="thisMonthEnd"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -End Value:</Label></Field>
 
             <Field id="lastMonthMin"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>lastMonth -Min Value:</Label></Field>
             <Field id="lastMonthMax"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
@@ -123,6 +139,8 @@
             <Field id="lastMonthCount" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="lastMonthCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="lastMonthStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
+            <Field id="lastMonthStart"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Start Value:</Label></Field>
+            <Field id="lastMonthEnd"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -End Value:</Label></Field>
 
             <Field id="ignoreLess"                                                          type="textfield" defaultValue="-9999999999"><Label>Ignore values if values &lt; than:</Label></Field>
             <Field id="ignoreGreater"                                                       type="textfield" defaultValue="9999999999"><Label>Ignore values if values &gt; than:</Label></Field>
@@ -161,6 +179,11 @@
         <Name>print tracking setup to logfile </Name>
         <CallbackMethod>printConfigCALLBACK</CallbackMethod>
     </MenuItem>
+    <MenuItem id="refreshDataNow">
+        <Name>refresh Data Now</Name>
+        <CallbackMethod>buttonrefreshDataNowCALLBACK</CallbackMethod>
+    </MenuItem>
+    
     
 
 </MenuItems>

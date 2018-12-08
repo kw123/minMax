@@ -1,14 +1,22 @@
-changes in V 7.8.6  @ 2018-12-04 
+changes in V 7.9.7  @ 2018-12-07
 ==================  
 
-1. added standard deviation measure ( devStd )  
-
-2. improved menu error checking
+1. added measures:
+	standard deviation "StdDev"  
+	Start Value "Start" = first value in time bin and "End" = Last Value
+	all functions: "Min", "Max", "DateMin", "DateMax", "Ave", "Count", "Count1", "First"", "Last 
+	time bins:     this & last:  hour, day, week, month, and last7Days 
+	
+2. improved menu error checking - in case not all fields are set
 
 3. improved formatting of menus and printouts
  
-3. added option to select / deselect all 72 possible measures in 
-	meu define tracking ...    
+4. automatic subscription to changes in devices and variables.  Will switch on/off if not needed
+	optimized checking if data updates are needed to reduce cpu load
+ 
+5. added option to select / de-select all 90 possible measures in memu "define tracking ..."   
+  
+6. force refresh all data  action & menu items  
  
 
 
@@ -38,7 +46,7 @@ changes in V 7.8.5  @ 2018-12-02
 	and for each of the above the following   
 	functions: "Min","Max","DateMin = Date of Min","DateMax = Date of Max","Ave","Count","Count1= Count when value>0 - use for eg events = on/off types" 
 
-7. option to choose short name for variables - set in define tarcking of devices menu
+7. option to choose short name for variables - set in define tracking of devices menu
 	instead of s-2-TH-Leo-Outside_Temperature_thisWeek_Max
 	eg  set short name to        L-O-Temp
 	results in variable name:    L-O-Temp_thisWeek_Max
