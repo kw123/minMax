@@ -1100,8 +1100,10 @@ class Plugin(indigo.PluginBase):
 					if  dataOut[TW]["DateMax"] !="" and dataOut[TW]["DateMax"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMax"] = self.dateLimits[TW][0]
 					if self.timeFormatInternal != self.timeFormatDisplay:
 						try:
-							dataOut[TW]["DateMin"] = (datetime.datetime.strptime(dataOut[TW]["DateMin"],self.timeFormatInternal)).strftime(self.timeFormatDisplay)
-							dataOut[TW]["DateMax"] = (datetime.datetime.strptime(dataOut[TW]["DateMax"],self.timeFormatInternal)).strftime(self.timeFormatDisplay)
+							dataOut[TW]["DateMin"]			= (datetime.datetime.strptime(dataOut[TW]["DateMin"],        self.timeFormatInternal)).strftime(self.timeFormatDisplay)
+							dataOut[TW]["DateMax"]			= (datetime.datetime.strptime(dataOut[TW]["DateMax"],        self.timeFormatInternal)).strftime(self.timeFormatDisplay)
+							dataOut[TW]["FirstEntryDate"]	= (datetime.datetime.strptime(dataOut[TW]["FirstEntryDate"], self.timeFormatInternal)).strftime(self.timeFormatDisplay)
+							dataOut[TW]["LastEntryDate"]	= (datetime.datetime.strptime(dataOut[TW]["LastEntryDate"],  self.timeFormatInternal)).strftime(self.timeFormatDisplay)
 						except Exception, e:
 							if not dateErrorShown:
 								self.ML.myLog(" date conversion error , bad format: "+self.timeFormatDisplay+"  %s"%e )
