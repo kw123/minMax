@@ -15,7 +15,7 @@ import urllib
 import fcntl
 import signal
 import copy
-import myLogPgms.myLogPgms 
+import myLogPgms 
 import logging
 import math
 import Queue
@@ -34,7 +34,7 @@ device_state_Min  .. Max   Ave DateMin DateMax Count Count1 with the values.
 '''
 
 _timeWindows	=["thisHour","lastHour","thisDay","lastDay","thisWeek","lastWeek","thisMonth","lastMonth","last7Days"] #   ,"weekdays"]
-_MeasBins		=["Min","Max","DateMin","DateMax","Ave","Count","Count1","StdDev","Start","End"]
+_MeasBins		=["Min","Max","DateMin","DateMax","Ave","Count","Count1","StdDev","Start","End","FirstEntryDate","FirstEntryValue","LastEntryDate","LastEntryValue"]
 
 ################################################################################
 class Plugin(indigo.PluginBase):
@@ -92,7 +92,7 @@ class Plugin(indigo.PluginBase):
 
 		self.checkcProfile()
 
-		self.ML = myLogPgms.myLogPgms.MLX()
+		self.ML = myLogPgms.MLX()
 		self.setLogfile(unicode(self.pluginPrefs.get("logFileActive2", "standard")))
 
 		self.cleandevList()
@@ -862,11 +862,12 @@ class Plugin(indigo.PluginBase):
 								except:	pass
 
 							if  MB.find("Count")>-1:
-								indigo.variable.updateValue(varName+"_"+TW+"_"+MB,          ("%d"%(value[MB])).strip())
+										indigo.variable.updateValue(varName+"_"+TW+"_"+MB,          ("%d"%(value[MB])).strip())
 							elif MB.find("Date")>-1:
-								indigo.variable.updateValue(varName+"_"+TW+"_"+MB,          value[MB].strip())
+										indigo.variable.updateValue(varName+"_"+TW+"_"+MB,          value[MB].strip())
 							else:
-								indigo.variable.updateValue(varName+"_"+TW+"_"+MB,          (params["formatNumbers"]%(value[MB])).strip())
+								try:	indigo.variable.updateValue(varName+"_"+TW+"_"+MB,          (params["formatNumbers"]%(value[MB])).strip())
+								except:	indigo.variable.updateValue(varName+"_"+TW+"_"+MB,          "")
 								
 			for devId in delList:
 				del self.devList[devId]
@@ -1004,7 +1005,7 @@ class Plugin(indigo.PluginBase):
 		dataOut 			= {}
 		dateErrorShown 		= False
 		for TW in self.dateLimits:
-			dataOut[TW] = {"Min": -987654321000.,"Max":987654321000.,"DateMin":"","DateMax":"","Count": 0.,"Count1":0,"StdDev":0,"Ave":0,"AveSimple":0}
+			dataOut[TW] = {"Min": -987654321000.,"Max":987654321000.,"DateMin":"","DateMax":"","Count":0.,"Count1":0,"StdDev":0,"Ave":0,"AveSimple":0,"FirstEntryDate":"","FirstEntryValue":"","LastEntryDate":"","LastEntryValue":""}
 		try:
 
 			nData = len(dataIn)
@@ -1044,7 +1045,11 @@ class Plugin(indigo.PluginBase):
 							secondsEnd   	= min(secondsEndD,  self.dateLimits[TW][3]) 
 							# first data point?
 							norm = 1.0
-							if  (date  < self.dateLimits[TW][0] and dataOut[TW]["Count"] <= 1) or dataOut[TW]["Count"] ==0:  ## use last below date range?
+							if  date  >= self.dateLimits[TW][0] and dataOut[TW]["FirstEntryDate"] =="" and value != 0:  ## use last below date range?
+								dataOut[TW]["FirstEntryDate"] 		= date 				# 
+								dataOut[TW]["FirstEntryValue"]		= value 			# 
+
+							if  (date  < self.dateLimits[TW][0] and dataOut[TW]["Count"] <= 1) or dataOut[TW]["Count"] == 0:  ## use last below date range?
 								dataOut[TW]["Start"] 				= value 				# Start value
 								dataOut[TW]["End"] 					= value 				# 
 								dataOut[TW]["Min"] 					= value 				# min
@@ -1069,6 +1074,11 @@ class Plugin(indigo.PluginBase):
 								if dataOut[TW]["Max"] < value:
 									dataOut[TW]["Max"] 				= value				# max  
 									dataOut[TW]["DateMax"]			= date				# datestamp
+
+								if value != 0:
+									dataOut[TW]["LastEntryDate"] 		= date 				#
+									dataOut[TW]["LastEntryValue"]		= value 			# 
+
 	
 								dataOut[TW]["End"] 					= value 				# min
 								norm 								= (secondsEnd - secondsStartD)/detalSecTotal

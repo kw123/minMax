@@ -1,4 +1,11 @@
-changes in V 7.9.9  @ 2018-12-07
+changes in V 7.10.10  @ 2018-12-11
+==================  
+
+1. added measures:
+	First / last Entry Value and Date. These are the data from the first/last entry in the sql db in the time bin
+
+
+changes in V 7.9.7  @ 2018-12-07
 ==================  
 
 1. added measures:
