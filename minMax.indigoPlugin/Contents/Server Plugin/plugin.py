@@ -15,7 +15,6 @@ import urllib
 import fcntl
 import signal
 import copy
-import myLogPgms 
 import logging
 import math
 import Queue
