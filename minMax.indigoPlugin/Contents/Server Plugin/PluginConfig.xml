@@ -82,8 +82,6 @@
 
     <Field    id="logFileActive2"      type="menu"      defaultValue="standard"      > <Label> send logs to ..:</Label>
         <List>
-            <Option value="standard" > no special minMax logfile, std indigo logfile</Option>
-            <Option value="user"     > ~/indigo/minMax/plugin.log                    </Option>
             <Option value="indigo"   > .. Perceptive Automation/Indigo x/Logs/com.karlwachs.minMax/plugin.log </Option>
         </List>
     </Field>

@@ -1,3 +1,12 @@
+changes in V 7.11.11  @ 2019-02-02
+==================  
+
+1. added:
+	changed to std logging
+
+2. fixed bug fillVariables: error in  Line '835' ;  error='need more than 0 values to unpack'
+
+
 changes in V 7.10.10  @ 2018-12-11
 ==================  
 

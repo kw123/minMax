@@ -19,7 +19,6 @@ import myLogPgms
 import logging
 import math
 import Queue
-
 import cProfile
 import pstats
 
@@ -41,17 +40,74 @@ class Plugin(indigo.PluginBase):
 ####----------------- logfile  ---------
 	def __init__(self, pluginId, pluginDisplayName, pluginVersion, pluginPrefs):
 		indigo.PluginBase.__init__(self, pluginId, pluginDisplayName, pluginVersion, pluginPrefs)
-		self.pathToPlugin       =os.getcwd()+"/"
-		## = /Library/Application Support/Perceptive Automation/Indigo 6/Plugins/INDIGOPLOTD.indigoPlugin/Contents/Server Plugin
-		p=max(0,self.pathToPlugin.lower().find("/plugins/"))+1
-		self.indigoPath         = self.pathToPlugin[:p]
-		self.pluginState        = "init"
-		self.pluginVersion      = pluginVersion
-		self.pluginId           = pluginId
-		self.pluginName         = pluginId.split(".")[-1]
-		self.pluginShortName    = "minMax"
-		self.quitNow			= "" # set to !="" when plugin should exit ie to restart, needed for subscription -> loop model
+
+		self.pluginShortName 			= "minMax"
+
+
+		self.getInstallFolderPath		= indigo.server.getInstallFolderPath()+"/"
+		self.indigoPath					= indigo.server.getInstallFolderPath()+"/"
+		self.indigoRootPath 			= indigo.server.getInstallFolderPath().split("Indigo")[0]
+		self.pathToPlugin 				= self.completePath(os.getcwd())
+
+		major, minor, release 			= map(int, indigo.server.version.split("."))
+		self.indigoVersion				= major
+		self.pluginVersion				= pluginVersion
+		self.pluginId					= pluginId
+		self.pluginName					= pluginId.split(".")[-1]
+		self.myPID						= os.getpid()
+		self.pluginState				= "init"
+
+		self.myPID 						= os.getpid()
+		self.MACuserName				= pwd.getpwuid(os.getuid())[0]
+
+		self.MAChome					= os.path.expanduser(u"~")
+		self.userIndigoDir				= self.MAChome + "/indigo/"
+		self.indigoPreferencesPluginDir = self.getInstallFolderPath+"Preferences/Plugins/"+self.pluginId+"/"
+		self.indigoPluginDirOld			= self.userIndigoDir + self.pluginShortName+"/"
+		self.PluginLogFile				= indigo.server.getLogsFolderPath(pluginId=self.pluginId) +"/plugin.log"
+
+
+		formats=	{   logging.THREADDEBUG: "%(asctime)s %(msg)s",
+						logging.DEBUG:       "%(asctime)s %(msg)s",
+						logging.INFO:        "%(msg)s",
+						logging.WARNING:     "%(asctime)s %(msg)s",
+						logging.ERROR:       "%(asctime)s.%(msecs)03d\t%(levelname)-12s\t%(name)s.%(funcName)-25s %(msg)s",
+						logging.CRITICAL:    "%(asctime)s.%(msecs)03d\t%(levelname)-12s\t%(name)s.%(funcName)-25s %(msg)s" }
+
+		date_Format = { logging.THREADDEBUG: "%d %H:%M:%S",
+						logging.DEBUG:       "%d %H:%M:%S",
+						logging.INFO:        "%H:%M:%S",
+						logging.WARNING:     "%H:%M:%S",
+						logging.ERROR:       "%Y-%m-%d %H:%M:%S",
+						logging.CRITICAL:    "%Y-%m-%d %H:%M:%S" }
+		formatter = LevelFormatter(fmt="%(msg)s", datefmt="%Y-%m-%d %H:%M:%S", level_fmts=formats, level_date=date_Format)
+
+		self.plugin_file_handler.setFormatter(formatter)
+		self.indiLOG = logging.getLogger("Plugin")  
+		self.indiLOG.setLevel(logging.THREADDEBUG)
+
+		self.indigo_log_handler.setLevel(logging.ERROR)
+		indigo.server.log("initializing	 ... ")
+
+		indigo.server.log(u"path To files:      =================")
+		indigo.server.log(u"indigo              "+self.indigoRootPath)
+		indigo.server.log(u"installFolder       "+self.indigoPath)
+		indigo.server.log(u"plugin.py           "+self.pathToPlugin)
+		indigo.server.log(u"Plugin params       "+self.indigoPreferencesPluginDir)
+
+		self.indiLOG.log( 0, "logger  enabled for   0")
+		self.indiLOG.log( 5, "logger  enabled for   THREADDEBUG")
+		self.indiLOG.log(10, "logger  enabled for   DEBUG")
+		self.indiLOG.log(20, "logger  enabled for   INFO")
+		self.indiLOG.log(30, "logger  enabled for   WARNING")
+		self.indiLOG.log(40, "logger  enabled for   ERROR")
+		self.indiLOG.log(50, "logger  enabled for   CRITICAL")
+		indigo.server.log(u"check               "+self.PluginLogFile +"  <<<<    for detailed logging")
+		indigo.server.log(u"Plugin short Name   "+self.pluginShortName)
+		indigo.server.log(u"my PID              "+str(self.myPID))	 
 	
+		self.quitNow = ""
+
 ####-----------------   ---------
 	def __del__(self):
 		indigo.PluginBase.__del__(self)
@@ -64,19 +120,14 @@ class Plugin(indigo.PluginBase):
 		self.myPID = os.getpid()
 		self.MACuserName   = pwd.getpwuid(os.getuid())[0]
 
-		self.MAChome                    = os.path.expanduser(u"~")
-		self.userIndigoDir              = self.MAChome + "/indigo/"
-		self.userIndigoPluginDir        = self.userIndigoDir +self.pluginShortName+ u"/"
- 
-		if True:
-			if not os.path.exists(self.userIndigoDir):
-				os.mkdir(self.userIndigoDir)
 
-			if not os.path.exists(self.userIndigoPluginDir):
-				os.mkdir(self.userIndigoPluginDir)
+		if True:
+
+			if not os.path.exists(self.indigoPreferencesPluginDir):
+				os.mkdir(self.indigoPreferencesPluginDir)
 	
-				if not os.path.exists(self.userIndigoPluginDir):
-					self.errorLog("error creating the plugin data dir did not work, can not create: "+ self.userIndigoPluginDir)
+				if not os.path.exists(self.indigoPreferencesPluginDir):
+					self.indiLOG.log(50,"error creating the plugin data dir did not work, can not create: "+ self.indigoPreferencesPluginDir)
 					self.sleep(1000)
 					exit()
 				
@@ -92,8 +143,7 @@ class Plugin(indigo.PluginBase):
 
 		self.checkcProfile()
 
-		self.ML = myLogPgms.MLX()
-		self.setLogfile(unicode(self.pluginPrefs.get("logFileActive2", "standard")))
+		self.setLogfile(unicode(self.pluginPrefs.get("logFileActive2", "indigo")))
 
 		self.cleandevList()
 		self.resetOldValues()
@@ -132,7 +182,7 @@ class Plugin(indigo.PluginBase):
 					pass
 
 			for devId in self.devList:
-				#self.ML.myLog( text="devId devList "+ str(devId)+ " " +unicosde(self.devList[devId]) )
+				#self.indiLOG.log(20,"devId devList "+ str(devId)+ " " +unicosde(self.devList[devId]) )
 				if "states" not in self.devList[devId]: continue
 				remState =[]
 				for state in self.devList[devId]["states"]:
@@ -168,19 +218,11 @@ class Plugin(indigo.PluginBase):
 					del self.devList[devId]["states"][state]
 		except  Exception, e:
 			if len(unicode(e)) > 5:
-				self.ML.myLog( text= "cleandevList error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+				self.indiLOG.log(40, u"cleandevList error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e))
 
 
 
 ####-----------------   ---------
-	####-----------------    ---------
-	def setLogfile(self,lgFile):
-		self.logFileActive =lgFile
-		if   self.logFileActive =="standard":   self.logFile = ""
-		elif self.logFileActive =="indigo":     self.logFile = self.indigoPath.split("Plugins/")[0]+"Logs/"+self.pluginId+"/plugin.log"
-		else:                                   self.logFile = self.userIndigoPluginDir +"plugin.log"
-		self.ML.myLogSet(debugLevel = self.debugLevel ,logFileActive=self.logFileActive, logFile = self.logFile, pluginSelf=self)
-		self.ML.myLog( text= "refresh Rate (how often SQL is read): %d[sec]"%(self.refreshRate), destination="standard")
 
 ####-----------------   ---------
 	def deviceStartComm(self, dev):
@@ -225,36 +267,34 @@ class Plugin(indigo.PluginBase):
 ####-----------------   ---------
 	def printConfigCALLBACK(self, printDevId=""):
 		try:
-			self.ML.myLog( text="Configuration: ... date format: "+ self.timeFormatDisplay +" ==> "+ (datetime.datetime.now()).strftime(self.timeFormatDisplay), destination="standard"  )
-			header = "Dev-Name-----                     DevID            State   ignoreLess ignoreGreater  format tracking "
-			indent = "                           "
-			self.ML.myLog( text=header+"measures: -------", destination="standard" )
+			self.indiLOG.log(20,"Configuration: ... date format: "+ self.timeFormatDisplay +" ==> "+ (datetime.datetime.now()).strftime(self.timeFormatDisplay) )
+			header = "Dev-Name-----                     DevID            State   ignoreLess ignoreGreater  format  "
+			self.indiLOG.log(20,header+"tracking measures: -------")
 			for devId in self.devList:
 				if devId == printDevId or printDevId=="":
 					for state in self.devList[devId]["states"]:
-						out = "%13.0f"%self.devList[devId]["states"][state]["ignoreLess"]+"%14.0f"%(self.devList[devId]["states"][state]["ignoreGreater"])+("'"+self.devList[devId]["states"][state]["formatNumbers"]+"'").rjust(8)+" "
+						out = "%13.0f"%self.devList[devId]["states"][state]["ignoreLess"]+"%14.0f"%(self.devList[devId]["states"][state]["ignoreGreater"])+("'"+self.devList[devId]["states"][state]["formatNumbers"]+"'").rjust(8)+"  "
 						measures = ""
 						for TW in self.devList[devId]["states"][state]["measures"]:
 							ssLine = ""
 							for MB in self.devList[devId]["states"][state]["measures"][TW]:
-								##indigo.server.log( state+"  "+ TW+"  "+MB+" "+unicode(self.devList[devId]["states"][state]["measures"][TW][MB]))
 								if  self.devList[devId]["states"][state]["measures"][TW][MB]:
 									if ssLine =="":
 										if measures !="":
-											ssLine +="\n ".ljust(len(header)+ len(indent))
+											ssLine +="\n ".ljust(len(header)+1 )
 										ssLine += (TW+"-").ljust(11)
 									ssLine	+= MB+" "
 							measures += ssLine
 						if measures == "":
 							measures ="--- no measure selected, no variable will be created---"
 						if self.devList[devId]["devOrVar"]=="Var":           
-							self.ML.myLog( text= indigo.variables[int(devId)].name.ljust(28) +  devId.rjust(11)+ state.rjust(17) + out+measures, destination="standard"  )
+							self.indiLOG.log(20,indigo.variables[int(devId)].name.ljust(28) +  devId.rjust(11)+ state.rjust(17) + out+measures )
 						else:           
-							self.ML.myLog( text= indigo.devices[int(devId)].name.ljust(28)   +  devId.rjust(11)+ state.rjust(17) + out+measures, destination="standard"  )
+							self.indiLOG.log(20,indigo.devices[int(devId)].name.ljust(28)   +  devId.rjust(11)+ state.rjust(17) + out+measures  )
 		except  Exception, e:
 			if len(unicode(e)) > 5:
-				self.ML.myLog( text= "printConfigCALLBACK error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
-			self.ML.myLog( text=unicode(self.devList))
+				self.indiLOG.log(40,"printConfigCALLBACK error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e) )
+			self.indiLOG.log(40, unicode(self.devList))
 		return
 
 
@@ -281,7 +321,7 @@ class Plugin(indigo.PluginBase):
 ########### --- delete dev/states from tracking 
 ####-----------------   ---------
 	def pickExistingDeviceCALLBACK(self,valuesDict="",typeId=""):               # Select only device/properties that are supported
-		if self.ML.decideMyLog(u"Setup"): self.ML.myLog( text =unicode(valuesDict))
+		if self.decideMyLog(u"Setup"): self.indiLOG.log(20, unicode(valuesDict))
 		if valuesDict["device"].find("-V") >-1:
 			self.devOrVarExist="Var"
 			self.devIDSelectedExist= int(valuesDict["device"][:-2])# drop -V
@@ -348,7 +388,7 @@ class Plugin(indigo.PluginBase):
 ########### --- add dev/states to tracking 
 ####-----------------   ---------
 	def pickDeviceCALLBACK(self,valuesDict="",typeId=""):               # Select only device/properties that are supported
-		if self.ML.decideMyLog(u"Setup"): self.ML.myLog( text =unicode(valuesDict))
+		if self.decideMyLog(u"Setup"): self.indiLOG.log(20,unicode(valuesDict))
 		if valuesDict["device"].find("-V") >-1:
 			self.devOrVar="Var"
 			self.devIDSelected= int(valuesDict["device"][:-2])# drop -V
@@ -513,7 +553,7 @@ class Plugin(indigo.PluginBase):
 				use=False
 				for MB in _MeasBins: 
 					if valuesDict[TW+MB]:
-						#self.ML.myLog( text= unicode(self.devList[devId]) )
+						#self.indiLOG.log(20, unicode(self.devList[devId]) )
 						self.devList[devId]["states"][state]["measures"][TW][MB]=True
 						anyOne = True
 					else:    
@@ -534,7 +574,7 @@ class Plugin(indigo.PluginBase):
 			self.printConfigCALLBACK(printDevId=devId)
 		except  Exception, e:
 			if len(unicode(e)) > 5:
-				self.ML.myLog( errorType = u"bigErr", text ="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+				self.indiLOG.log(40,"error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e) )
 
 		valuesDict["showM"] = False          
 		if not anyOne: valuesDict["MSG"] ="no measure selected-- no variable will be cretaed"
@@ -549,7 +589,7 @@ class Plugin(indigo.PluginBase):
 	####-----------------  ---------
 	def buttonrefreshDataNowCALLBACK(self,valuesDict=""):
 		self.hourLast	= -99
-		self.ML.myLog( text="data refresh requested")
+		self.indiLOG.log(20,"data refresh requested")
 		return
 
 	###########################	   cProfile stuff   ############################ START
@@ -581,7 +621,7 @@ class Plugin(indigo.PluginBase):
 		try:
 			if pri !="": pick = pri
 			else:		 pick = 'cumtime'
-			outFile		= self.userIndigoPluginDir+"timeStats"
+			outFile		= self.indigoPreferencesPluginDir+"timeStats"
 			indigo.server.log(" print time track stats to: "+outFile+".dump / txt  with option: "+pick)
 			self.pr.dump_stats(outFile+".dump")
 			sys.stdout 	= open(outFile+".txt", "w")
@@ -649,18 +689,18 @@ class Plugin(indigo.PluginBase):
 
 ####-----------------   var update ==> trigger sql run          ---------
 	def variableUpdated(self, orig, new):
-		#self.ML.myLog( text="variable data refresh "+ new.name)
+		#self.indiLOG.log(20,"variable data refresh "+ new.name)
 		if str(new.id) not in self.devList: return 
 		self.QList.put(str(new.id))
-		#self.ML.myLog( text="variable data refresh requested due to new data in "+ new.name)
+		#self.indiLOG.log(20,"variable data refresh requested due to new data in "+ new.name)
 	
 ####-----------------   dev update ==> trigger sql run          ---------
 	def deviceUpdated(self, orig, new):
 		if str(new.id) not in self.devList: return 
-		#self.ML.myLog( text="device data refresh requested due to new data in "+ new.name)
+		#self.indiLOG.log(20,"device data refresh requested due to new data in "+ new.name)
 		for state in self.devList[str(new.id)]["states"]:
 			if state in new.states and new.states[state] != orig.states[state]:
-				#self.ML.myLog( text="device data refresh requested due to new data in "+ new.name+"  "+unicode(new.states[state] ))
+				#self.indiLOG.log(20,"device data refresh requested due to new data in "+ new.name+"  "+unicode(new.states[state] ))
 				self.QList.put(str(new.id))
 				break
 
@@ -701,7 +741,7 @@ class Plugin(indigo.PluginBase):
 				cond1	= ((nowTT- self.nextQuerry > self.refreshRate)  or self.hourLast == -99)
 				cond2	= not self.QList.empty()
 				cond3	= nowTT - lastSqlTime > nextMinTime
-				#self.ML.myLog( text="timers: " +str(cond1) +"  "+str(cond2) +"  "+str(cond3) +"  "+str(allUpdates))
+				#self.indiLOG.log(20,"timers: " +str(cond1) +"  "+str(cond2) +"  "+str(cond3) +"  "+str(allUpdates))
 				if  (cond1 or cond2) and cond3:
 					if nowTT - lastSqlTime > nextMinTime: 
 						dd= datetime.datetime.now()
@@ -735,7 +775,7 @@ class Plugin(indigo.PluginBase):
 				
 		except Exception, e:
 			if len(unicode(e)) > 5:
-				self.ML.myLog( errorType = u"bigErr", text ="checkoldValues: error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+				self.indiLOG.log(40," in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e) )
 
 		self.pluginPrefs["devList"] =json.dumps(self.devList)
 		return
@@ -753,18 +793,18 @@ class Plugin(indigo.PluginBase):
 					if not self.subscribeVariable: indigo.variables.subscribeToChanges()
 					self.subscribeVariable = True
 					nVars +=1
-					if nVars == 1: self.ML.myLog(text ="subscribing to variable changes")
+					if nVars == 1: self.indiLOG.log(20,"subscribing to variable changes")
 				else:
 					if not self.subscribeDevice: indigo.devices.subscribeToChanges()
 					self.subscribeDevice = True
 					nDevs +=1
-					if nDevs ==1: self.ML.myLog(text ="subscribing to device changes")
+					if nDevs ==1: self.indiLOG.log(20,"subscribing to device changes")
 					
 			if nVars ==0 and self.subscribeVariable: self.quitNow =" restart due to no variables subcriptions needed"
 			if nDevs ==0 and self.subscribeDevice:  self.quitNow =" restart due to no variables subcriptions needed"
 		except  Exception, e:
 			if len(unicode(e)) > 5:
-				self.ML.myLog( errorType = u"bigErr", text ="checkoldValues: error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+				self.indiLOG.log(40,"checkoldValues: error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e) )
 
 
 
@@ -781,7 +821,7 @@ class Plugin(indigo.PluginBase):
 
 		except  Exception, e:
 			if len(unicode(e)) > 5:
-				self.ML.myLog( errorType = u"bigErr", text ="checkoldValues: error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+				self.indiLOG.log(40,"Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e) )
 
 
 ####-----------------  do the calculations and sql statements  ---------
@@ -800,9 +840,7 @@ class Plugin(indigo.PluginBase):
 			if len(qDevIds) ==0: allUpdates = True
 			else:				 allUpdates = False
 
-			#self.ML.myLog( text ="qDevIds: " +unicode(qDevIds) )
 			for devId in self.devList:
-				#self.ML.myLog( text ="devId: test  " +unicode(devId) )
 				if not( len(qDevIds) == 0 or devId in qDevIds ): continue
 				
 				if int(devId) >0:
@@ -813,10 +851,10 @@ class Plugin(indigo.PluginBase):
 							devName= indigo.devices[int(devId)].name
 					except  Exception, e:
 						if unicode(e).find("timeout waiting") > -1:
-							self.ML.myLog( text = u"in Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
-							self.ML.myLog( text ="communication to indigo is interrupted")
+							self.indiLOG.log(20, u"in Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
+							self.indiLOG.log(20,"communication to indigo is interrupted")
 							return
-						self.ML.myLog( text=" error; device with indigoID = "+ str(devId) +" does not exist, removing from tracking") 
+						self.indiLOG.log(40," error; device with indigoID = "+ str(devId) +" does not exist, removing from tracking") 
 						delList.append(devId)
 						continue
 						   
@@ -832,7 +870,7 @@ class Plugin(indigo.PluginBase):
 						varName	= devName.replace(" ","_")+"_"+state.replace(" ","_")
 						
 					dataSQL				= self.doSQL(devId,state,self.devList[devId]["devOrVar"])
-					dataClean,sum,nv	= self.removeDoublesInSQL(dataSQL, params["ignoreLess"],params["ignoreGreater"])
+					dataClean,sum,nv	= self.removeDoublesInSQL(dataSQL, params["ignoreLess"], params["ignoreGreater"])
 					if sum == self.oldValues[devId][state]["sum"] and nv == self.oldValues[devId][state]["nv"] and self.hourLast != -99: 
 						continue
 						
@@ -840,17 +878,15 @@ class Plugin(indigo.PluginBase):
 					self.oldValues[devId][state]["nv"]  = nv
 					values								= self.calculate(dataClean)
 
-					if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text ="variName "+varName)
-					#if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text ="dataSQL   " +unicode(dataSQL)[0:500])
-					#if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text ="dataClean " +unicode(dataClean)[0:500])
-					if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text ="values    " +unicode(values)[0:500])
-					if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text =";   state: "+ state+" params: "+unicode(params)+" "+unicode(values)[0:30])
+					if self.decideMyLog(u"Loop"): self.indiLOG.log(20,"variName "+varName)
+					if self.decideMyLog(u"Loop"): self.indiLOG.log(20,"values    " +unicode(values)[0:500])
+					if self.decideMyLog(u"Loop"): self.indiLOG.log(20,";   state: "+ state+" params: "+unicode(params)+" "+unicode(values)[0:30])
 
 					for TW in values:
 						if TW not in params["measures"]: continue
 						
 						value=values[TW]
-						if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text ="TW    " + TW+" "+unicode(value))
+						if self.decideMyLog(u"Loop"): self.indiLOG.log(20,"TW    " + TW+" "+unicode(value))
 						
 						for MB in _MeasBins:
 							if MB not in params["measures"][TW]:	continue
@@ -873,7 +909,7 @@ class Plugin(indigo.PluginBase):
 				del self.devList[devId]
 		except  Exception, e:
 			if len(unicode(e)) > 5:
-				self.ML.myLog( errorType = u"bigErr", text ="fillVariables: error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+				self.indiLOG.log(40,"Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e),)
 		return allUpdates
 
 ####-----------------  do the calculations and sql statements  ---------
@@ -944,12 +980,12 @@ class Plugin(indigo.PluginBase):
 				self.dateLimits[TW][3] = (datetime.datetime.strptime(self.dateLimits[TW][1], self.timeFormatInternal)-self.epoch).total_seconds()
 				self.dateLimits[TW][4] = max(1.,self.dateLimits[TW][3] - self.dateLimits[TW][2])
 
-			if self.ML.decideMyLog(u"Loop"): 
-				self.ML.myLog( text ="first-Date:  "+unicode(self.firstDate))
-				self.ML.myLog( text ="date-limits: "+unicode(self.dateLimits))
+			if self.decideMyLog(u"Loop"): 
+				self.indiLOG.log(20,"first-Date:  "+unicode(self.firstDate))
+				self.indiLOG.log(20,"date-limits: "+unicode(self.dateLimits))
 		except  Exception, e:
 			if len(unicode(e)) > 5:
-				self.ML.myLog( errorType = u"bigErr", text ="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+				self.indiLOG.log(40," Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e) )
 		return 
 					
 
@@ -977,7 +1013,7 @@ class Plugin(indigo.PluginBase):
 					sql4="  where to_char(ts,'YYYY-mm-dd-HH24:MI:ss') > '"+ self.firstDate+"'  ORDER by id  ;\""
 					cmd=sql+sql2+sql4
 					
-				if self.ML.decideMyLog(u"Sql"): self.ML.myLog( text =cmd)
+				if self.decideMyLog(u"Sql"): self.indiLOG.log(20,cmd)
 				p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 				out=p.communicate()
 				p.stdout.close()        
@@ -989,11 +1025,11 @@ class Plugin(indigo.PluginBase):
 					continue
 				break    
 			dataOut = out[0]
-			if self.ML.decideMyLog(u"Sql"): self.ML.myLog( text ="data-out: "+out[0][:300])
-			if self.ML.decideMyLog(u"Sql"): self.ML.myLog( text ="err-out:  "+out[1][:300])
+			if self.decideMyLog(u"Sql"): self.indiLOG.log(20,"data-out: "+out[0][:300])
+			if self.decideMyLog(u"Sql"): self.indiLOG.log(20,"err-out:  "+out[1][:300])
 		except  Exception, e:
 			if len(unicode(e)) > 5:
-				self.ML.myLog( errorType = u"bigErr", text ="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+				sself.indiLOG.log(40,"error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e) )
 		
 		return dataOut
 		
@@ -1021,7 +1057,7 @@ class Plugin(indigo.PluginBase):
 					date	= line[1]
 					if date == "": continue
 					value	= self.getNumber(line[0])
-					##self.ML.myLog(text =date+"  "+ unicode(value))
+					##self.indiLOG.log(20,date+"  "+ unicode(value))
 					if value =="x": continue
 
 					secondsStartD	= (datetime.datetime.strptime(date, self.timeFormatInternal)-self.epoch).total_seconds()
@@ -1087,34 +1123,31 @@ class Plugin(indigo.PluginBase):
 								dataOut[TW]["AveSimple"]			+= value 			# sum for simple average
 								dataOut[TW]["StdDev"]				+= value*value * norm# sum for simple average
 								if value >0: dataOut[TW]["Count1"] += 1				# count if > 0
-							#if TW == "lastHour":
-							#	self.ML.myLog(TW+ " value %.2f"% (value)+"  norm %.2f"%norm +"  v*n %.2f"%dataOut[TW]["Ave"] , destination="standard" )
 								
 						except Exception, e:
-							self.ML.myLog( text="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e))
-							self.ML.myLog( text=unicode(line))
-							self.ML.myLog( text=unicode(value))
+							self.indiLOG.log(40,"error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e))
+							self.indiLOG.log(40,unicode(line))
+							self.indiLOG.log(40,unicode(value))
 							continue            
 				for TW in self.dateLimits:
 					if  dataOut[TW]["DateMin"] !="" and dataOut[TW]["DateMin"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMin"] = self.dateLimits[TW][0]      
 					if  dataOut[TW]["DateMax"] !="" and dataOut[TW]["DateMax"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMax"] = self.dateLimits[TW][0]
 					if self.timeFormatInternal != self.timeFormatDisplay:
 						try:
-							dataOut[TW]["DateMin"]			= (datetime.datetime.strptime(dataOut[TW]["DateMin"],        self.timeFormatInternal)).strftime(self.timeFormatDisplay)
-							dataOut[TW]["DateMax"]			= (datetime.datetime.strptime(dataOut[TW]["DateMax"],        self.timeFormatInternal)).strftime(self.timeFormatDisplay)
-							dataOut[TW]["FirstEntryDate"]	= (datetime.datetime.strptime(dataOut[TW]["FirstEntryDate"], self.timeFormatInternal)).strftime(self.timeFormatDisplay)
-							dataOut[TW]["LastEntryDate"]	= (datetime.datetime.strptime(dataOut[TW]["LastEntryDate"],  self.timeFormatInternal)).strftime(self.timeFormatDisplay)
+							for xxx in ["DateMin","DateMax","FirstEntryDate","LastEntryDate"]:
+								if dataOut[TW][xxx]	!= "": 
+									dataOut[TW][xxx] = (datetime.datetime.strptime(dataOut[TW][xxx], self.timeFormatInternal)).strftime(self.timeFormatDisplay)
 						except Exception, e:
 							if not dateErrorShown:
-								self.ML.myLog(" date conversion error , bad format: "+self.timeFormatDisplay+"  %s"%e )
+								self.indiLOG.log(40," date conversion error , bad format: "+self.timeFormatDisplay+"  %s"%e )
+								self.indiLOG.log(20,"TW: "+TW+";  dataOut "+ unicode(dataOut[TW]))
 								dateErrorShown = True
-					#self.ML.myLog(TW+ " StdDev %.1f"% (math.sqrt(dataOut[TW]["StdDev"]))+"   %.1f"%dataOut[TW]["Ave"], destination="standard" )
 					dataOut[TW]["StdDev"] 		= math.sqrt(abs(dataOut[TW]["StdDev"]  - dataOut[TW]["Ave"]**2)) #  std dev
 					dataOut[TW]["AveSimple"]	= dataOut[TW]["AveSimple"]/max(1.,dataOut[TW]["Count"])     #  simple average
 		except  Exception, e:
 			if len(unicode(e)) > 5:
-				self.ML.myLog( errorType = u"bigErr", text ="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
-				self.ML.myLog(                        text ="dataIn: "+ unicode(dataIn) )
+				self.indiLOG.log(40,"error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e))
+				self.indiLOG.log(40,"dataIn: "+ unicode(dataIn) )
 				
 		return dataOut
 
@@ -1126,8 +1159,8 @@ class Plugin(indigo.PluginBase):
 		try:
 			dataIn=dataLines.split("\n")
 			t= dataIn[0].split(";")
-			if len(t)!=2: return []
-			if self.ML.decideMyLog(u"Loop"): self.ML.myLog( text =unicode(t))
+			if len(t)!=2: return dataOut, sum, nValues
+			if self.decideMyLog(u"Loop"): self.indiLOG.log(20,unicode(t))
 			date=t[0]
 			try:
 				value=self.getNumber(t[1])
@@ -1169,7 +1202,7 @@ class Plugin(indigo.PluginBase):
 
 		except  Exception, e:
 			if len(unicode(e)) > 5:
-				self.ML.myLog( errorType = u"bigErr", text ="error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e), destination="standard" )
+				self.indiLOG.log(40,"error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e) )
 		##indigo.server.log("dataOut"+unicode(dataOut))
 
 		return dataOut, sum, nValues
@@ -1191,7 +1224,7 @@ class Plugin(indigo.PluginBase):
 					else:
 						self.listOfPreselectedDevices.append((str(theVar.id)+"-V", "Var-"+unicode(theVar.name)))
 				except  Exception, e:
-					self.ML.myLog( errorType = u"bigErr", text ="Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
+					self.indiLOG.log(40,"Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
 
 		for dev in indigo.devices.iter():
 			theStates = dev.states.keys()
@@ -1216,7 +1249,7 @@ class Plugin(indigo.PluginBase):
 					else:
 						self.listOfPreselectedDevices.append((dev.id, dev.name))
 				except  Exception, e:
-					self.ML.myLog( errorType = u"bigErr", text ="Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
+					self.indiLOG.log(40,"Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
 		return
 
 
@@ -1281,3 +1314,147 @@ class Plugin(indigo.PluginBase):
 			except:
 				return "x"																			# something failed eg unicode only ==> return ""
 			return "x"																				# should not happen just for safety
+
+
+
+
+	####-----------------	 ---------
+	def completePath(self,inPath):
+		if len(inPath) == 0: return ""
+		if inPath == " ":	 return ""
+		if inPath[-1] !="/": inPath +="/"
+		return inPath
+
+
+########################################
+########################################
+####-----------------  logging ---------
+########################################
+########################################
+	####-----------------    ---------
+	def setLogfile(self,lgFile):
+		self.logFileActive =lgFile
+		if   self.logFileActive =="standard":	self.logFile = ""
+		elif self.logFileActive =="indigo":		self.logFile = self.indigoPath+"Logs/"+self.pluginId+"/plugin.log"
+		else:									self.logFile = self.indigoPreferencesPluginDir +"plugin.log"
+		self.myLogSet(debugLevel = self.debugLevel ,logFileActive=self.logFileActive, logFile = self.logFile, pluginSelf=self)
+
+	####----------------- ---------
+	def setLogfile(self, lgFile):
+		self.logFileActive =lgFile
+		if   self.logFileActive =="standard":	self.logFile = ""
+		elif self.logFileActive =="indigo":		self.logFile = self.indigoPath.split("Plugins/")[0]+"Logs/"+self.pluginId+"/plugin.log"
+		else:									self.logFile = self.indigoPreferencesPluginDir +"plugin.log"
+		self.myLog( text="myLogSet setting parameters -- logFileActive= "+ unicode(self.logFileActive) + "; logFile= "+ unicode(self.logFile)+ ";  debugLevel= "+ unicode(self.debugLevel) , destination="standard")
+
+
+
+			
+			
+	####-----------------	 ---------
+	def decideMyLog(self, msgLevel):
+		try:
+			if msgLevel	 == u"all" or u"all" in self.debugLevel:	 return True
+			if msgLevel	 == ""	 and u"all" not in self.debugLevel:	 return False
+			if msgLevel in self.debugLevel:							 return True
+			return False
+		except	Exception, e:
+			if len(unicode(e)) > 5:
+				indigo.server.log( u"decideMyLog in Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
+		return False
+
+	####-----------------  print to logfile or indigo log  ---------
+	def myLog(self,	 text="", mType="", errorType="", showDate=True, destination=""):
+		   
+
+		try:
+			if	self.logFileActive =="standard" or destination.find("standard") >-1:
+				if errorType == u"smallErr":
+					self.indiLOG.error(u"------------------------------------------------------------------------------")
+					self.indiLOG.error(text)
+					self.indiLOG.error(u"------------------------------------------------------------------------------")
+
+				elif errorType == u"bigErr":
+					self.indiLOG.error(u"==================================================================================")
+					self.indiLOG.error(text)
+					self.indiLOG.error(u"==================================================================================")
+
+				elif mType == "":
+					indigo.server.log(text)
+				else:
+					indigo.server.log(text, type=mType)
+
+
+			if	self.logFileActive !="standard":
+
+				ts =""
+				try:
+					if len(self.logFile) < 3: return # not properly defined
+					f =	 open(self.logFile,"a")
+				except	Exception, e:
+					indigo.server.log(u"in Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
+					try:
+						f.close()
+					except:
+						pass
+					return
+
+				if errorType == u"smallErr":
+					if showDate: ts = datetime.datetime.now().strftime(u"%H:%M:%S")
+					f.write(u"----------------------------------------------------------------------------------\n")
+					f.write((ts+u" ".ljust(12)+u"-"+text+u"\n").encode(u"utf8"))
+					f.write(u"----------------------------------------------------------------------------------\n")
+					f.close()
+					return
+
+				if errorType == u"bigErr":
+					if showDate: ts = datetime.datetime.now().strftime(u"%H:%M:%S")
+					ts = datetime.datetime.now().strftime(u"%H:%M:%S")
+					f.write(u"==================================================================================\n")
+					f.write((ts+u" "+u" ".ljust(12)+u"-"+text+u"\n").encode(u"utf8"))
+					f.write(u"==================================================================================\n")
+					f.close()
+					return
+				if showDate: ts = datetime.datetime.now().strftime(u"%H:%M:%S")
+				if mType == u"":
+					f.write((ts+u" " +u" ".ljust(25)  +u"-" + text + u"\n").encode("utf8"))
+				else:
+					f.write((ts+u" " +mType.ljust(25) +u"-" + text + u"\n").encode("utf8"))
+				### print calling function 
+				#f.write(u"_getframe:   1:" +sys._getframe(1).f_code.co_name+"   called from:"+sys._getframe(2).f_code.co_name+" @ line# %d"%(sys._getframe(1).f_lineno) ) # +"    trace# "+unicode(sys._getframe(1).f_trace)+"\n" )
+				f.close()
+				return
+
+
+		except	Exception, e:
+			if len(unicode(e)) > 5:
+				self.indiLOG.critical(u"myLog in Line '%s' has error='%s'" % (sys.exc_traceback.tb_lineno, e))
+				indigo.server.log(text)
+				try: f.close()
+				except: pass
+
+
+
+
+##################################################################################################################
+####-----------------  valiable formatter for differnt log levels ---------
+# call with: 
+# formatter = LevelFormatter(fmt='<default log format>', level_fmts={logging.INFO: '<format string for info>'})
+# handler.setFormatter(formatter)
+class LevelFormatter(logging.Formatter):
+	def __init__(self, fmt=None, datefmt=None, level_fmts={}, level_date={}):
+		self._level_formatters = {}
+		self._level_date_format = {}
+		for level, format in level_fmts.items():
+			# Could optionally support level names too
+			self._level_formatters[level] = logging.Formatter(fmt=format, datefmt=level_date[level])
+		# self._fmt will be the default format
+		super(LevelFormatter, self).__init__(fmt=fmt, datefmt=datefmt)
+
+	def format(self, record):
+		if record.levelno in self._level_formatters:
+			return self._level_formatters[record.levelno].format(record)
+
+		return super(LevelFormatter, self).format(record)
+
+
