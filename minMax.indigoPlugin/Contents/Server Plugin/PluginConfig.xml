@@ -85,6 +85,7 @@
         visibleBindingValue="psql"
         id="postgresPassword"
         type="textfield"
+        secure="true"
         defaultValue="">
         <Label>postgres password (leave blank if not set)</Label>
     </Field>

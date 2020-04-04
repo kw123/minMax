@@ -139,7 +139,7 @@ class Plugin(indigo.PluginBase):
 		self.liteOrPsqlString   		= self.pluginPrefs.get(     "liteOrPsqlString", "/Library/PostgreSQL/bin/psql indigo_history postgres ")
 		self.postgresUserId				= self.pluginPrefs.get(		"postgresUserId",	"postgres")
 		self.postgresPassword			= self.pluginPrefs.get(		"postgresPassword",	"")
-		if self.postgresPassword != "" and liteOrPsqlString.find("psql") >-1: 
+		if self.postgresPassword != "" and self.liteOrPsql.find("psql") >-1: 
 			self.postgresPasscode 		= "PGPASSWORD="+self.postgresPassword +" "
 		else: self.postgresPasscode 	= ""
 		self.timeFormatDisplay  		= self.pluginPrefs.get(     "timeFormatDisplay", self.timeFormatInternal)
@@ -253,7 +253,7 @@ class Plugin(indigo.PluginBase):
 		self.liteOrPsql         = valuesDict["liteOrPsql"]
 		self.liteOrPsqlString   = valuesDict["liteOrPsqlString"]
 		self.postgresPassword	= valuesDict["postgresPassword"]
-		if self.postgresPassword != "" and liteOrPsqlString.find("psql") >-1: 
+		if self.postgresPassword != "" and self.liteOrPsql.find("psql") >-1: 
 			self.postgresPasscode 		= "PGPASSWORD="+self.postgresPassword +" "
 		else: self.postgresPasscode 	= ""
 		self.timeFormatDisplay  = valuesDict["timeFormatDisplay"]
@@ -799,14 +799,14 @@ class Plugin(indigo.PluginBase):
 			for devId in self.devList:
 				if self.devList[devId]["devOrVar"] == "Var":
 					if not self.subscribeVariable: indigo.variables.subscribeToChanges()
-					self.subscribeVariable = True
 					nVars +=1
-					if nVars == 1: self.indiLOG.log(20,"subscribing to variable changes")
+					if nVars == 1 and not self.subscribeVariable: self.indiLOG.log(20,"subscribing to variable changes")
+					self.subscribeVariable = True
 				else:
 					if not self.subscribeDevice: indigo.devices.subscribeToChanges()
-					self.subscribeDevice = True
 					nDevs +=1
-					if nDevs ==1: self.indiLOG.log(20,"subscribing to device changes")
+					if nDevs ==1 and not self.subscribeDevice: self.indiLOG.log(20,"subscribing to device changes")
+					self.subscribeDevice = True
 					
 			if nVars ==0 and self.subscribeVariable: self.quitNow =" restart due to no variables subcriptions needed"
 			if nDevs ==0 and self.subscribeDevice:  self.quitNow =" restart due to no variables subcriptions needed"
