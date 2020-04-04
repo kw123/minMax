@@ -70,6 +70,24 @@
         readOnly="yes">
         <Label>postgres command example :</Label>
     </Field>
+    
+    <Field
+        visibleBindingId="liteOrPsql"
+        visibleBindingValue="psql"
+        id="postgresUserId"
+        type="textfield"
+        defaultValue="postgres">
+        <Label>postgres userid</Label>
+    </Field>
+    
+    <Field
+        visibleBindingId="liteOrPsql"
+        visibleBindingValue="psql"
+        id="postgresPassword"
+        type="textfield"
+        defaultValue="">
+        <Label>postgres password (leave blank if not set)</Label>
+    </Field>
 
  
 

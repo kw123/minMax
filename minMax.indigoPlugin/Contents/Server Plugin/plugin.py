@@ -68,7 +68,7 @@ class Plugin(indigo.PluginBase):
 
 		formats=	{   logging.THREADDEBUG: "%(asctime)s %(msg)s",
 						logging.DEBUG:       "%(asctime)s %(msg)s",
-						logging.INFO:        "%(msg)s",
+						logging.INFO:        "%(asctime)s %(msg)s",
 						logging.WARNING:     "%(asctime)s %(msg)s",
 						logging.ERROR:       "%(asctime)s.%(msecs)03d\t%(levelname)-12s\t%(name)s.%(funcName)-25s %(msg)s",
 						logging.CRITICAL:    "%(asctime)s.%(msecs)03d\t%(levelname)-12s\t%(name)s.%(funcName)-25s %(msg)s" }
@@ -133,12 +133,17 @@ class Plugin(indigo.PluginBase):
 		self.debugLevel = []
 		for d in ["Loop","Sql","Setup","all"]:
 			if self.pluginPrefs.get(u"debug"+d, False): self.debugLevel.append(d)
-		self.timeFormatInternal	= "%Y-%m-%d-%H:%M:%S"
-		self.refreshRate        = float(self.pluginPrefs.get("refreshRate",5))
-		self.liteOrPsql         = self.pluginPrefs.get(     "liteOrPsql",       "sqlite")
-		self.liteOrPsqlString   = self.pluginPrefs.get(     "liteOrPsqlString", "/Library/PostgreSQL/bin/psql indigo_history postgres ")
-		self.timeFormatDisplay  = self.pluginPrefs.get(     "timeFormatDisplay", self.timeFormatInternal)
-		self.devList            = json.loads(self.pluginPrefs.get("devList","{}"))
+		self.timeFormatInternal			= "%Y-%m-%d-%H:%M:%S"
+		self.refreshRate        		= float(self.pluginPrefs.get("refreshRate",5))
+		self.liteOrPsql         		= self.pluginPrefs.get(     "liteOrPsql",       "sqlite")
+		self.liteOrPsqlString   		= self.pluginPrefs.get(     "liteOrPsqlString", "/Library/PostgreSQL/bin/psql indigo_history postgres ")
+		self.postgresUserId				= self.pluginPrefs.get(		"postgresUserId",	"postgres")
+		self.postgresPassword			= self.pluginPrefs.get(		"postgresPassword",	"")
+		if self.postgresPassword != "" and liteOrPsqlString.find("psql") >-1: 
+			self.postgresPasscode 		= "PGPASSWORD="+self.postgresPassword +" "
+		else: self.postgresPasscode 	= ""
+		self.timeFormatDisplay  		= self.pluginPrefs.get(     "timeFormatDisplay", self.timeFormatInternal)
+		self.devList            		= json.loads(self.pluginPrefs.get("devList","{}"))
 
 		self.checkcProfile()
 
@@ -147,18 +152,18 @@ class Plugin(indigo.PluginBase):
 		self.cleandevList()
 		self.resetOldValues()
 
-		self.variFolderName			= self.pluginPrefs.get("variFolderName","minMax")
-		self.saveNow				= False
-		self.devIDSelected			= 0
-		self.devIDSelectedExist		= 0
-		self.devOrVarExist			= "Var"
-		self.devOrVar				= "Var"
-		self.pluginPrefs["devList"]	= json.dumps(self.devList)
-		self.dateLimits				= [["2015-11-00-00:00:00","2015-12-00-00:00:00",0,0],["2015-12-00-00:00:00","2015-12-12-00:00:00",0,0]]
-		self.firstDate				= "2015-11-00-00:00:00"
-		self.hourLast				= -99 # last hour
-		self.subscribeVariable		= False
-		self.subscribeDevice		= False
+		self.variFolderName				= self.pluginPrefs.get("variFolderName","minMax")
+		self.saveNow					= False
+		self.devIDSelected				= 0
+		self.devIDSelectedExist			= 0
+		self.devOrVarExist				= "Var"
+		self.devOrVar					= "Var"
+		self.pluginPrefs["devList"]		= json.dumps(self.devList)
+		self.dateLimits					= [["2015-11-00-00:00:00","2015-12-00-00:00:00",0,0],["2015-12-00-00:00:00","2015-12-12-00:00:00",0,0]]
+		self.firstDate					= "2015-11-00-00:00:00"
+		self.hourLast					= -99 # last hour
+		self.subscribeVariable			= False
+		self.subscribeDevice			= False
 
 		self.printConfigCALLBACK()
 
@@ -247,6 +252,10 @@ class Plugin(indigo.PluginBase):
 		self.refreshRate        = float(valuesDict[u"refreshRate"])
 		self.liteOrPsql         = valuesDict["liteOrPsql"]
 		self.liteOrPsqlString   = valuesDict["liteOrPsqlString"]
+		self.postgresPassword	= valuesDict["postgresPassword"]
+		if self.postgresPassword != "" and liteOrPsqlString.find("psql") >-1: 
+			self.postgresPasscode 		= "PGPASSWORD="+self.postgresPassword +" "
+		else: self.postgresPasscode 	= ""
 		self.timeFormatDisplay  = valuesDict["timeFormatDisplay"]
 
 		try:
@@ -1000,17 +1009,20 @@ class Plugin(indigo.PluginBase):
 				if devOrVar== "Dev":
 					sql2 = state+" from device_history_"+str(devId)
 				else:    
-					sql2=" value from variable_history_"+str(devId)
+					sql2 =" value from variable_history_"+str(devId)
 
 				if self.liteOrPsql =="sqlite": 
-					sql= "/usr/bin/sqlite3  -separator \";\" '"+self.indigoPath+ "logs/indigo_history.sqlite' \"select strftime('%Y-%m-%d-%H:%M:%S',ts,'localtime'), "
-					sql4="  where ts > '"+ self.firstDate+"';\""
-					cmd=sql+sql2+sql4
+					sql = "/usr/bin/sqlite3  -separator \";\" '"+self.indigoPath+ "logs/indigo_history.sqlite' \"select strftime('%Y-%m-%d-%H:%M:%S',ts,'localtime'), "
+					sql4 ="  where ts > '"+ self.firstDate+"';\""
+					cmd =sql+sql2+sql4
 
 				else:    
-					sql= self.liteOrPsqlString+ " -t -A -F ';' -c \"SELECT to_char(ts,'YYYY-mm-dd-HH24:MI:ss'), "
-					sql4="  where to_char(ts,'YYYY-mm-dd-HH24:MI:ss') > '"+ self.firstDate+"'  ORDER by id  ;\""
-					cmd=sql+sql2+sql4
+					sql = self.liteOrPsqlString+ " -t -A -F ';' -c \"SELECT to_char(ts,'YYYY-mm-dd-HH24:MI:ss'), "
+					sql4 ="  where to_char(ts,'YYYY-mm-dd-HH24:MI:ss') > '"+ self.firstDate+"'  ORDER by id  ;\""
+					cmd = sql+sql2+sql4
+					cmd = self.postgresPasscode + cmd
+					if self.postgresUserId != "" and self.postgresUserId !="postgres": cmd = cmd.replace(" postgres "," "+self.postgresUserId+" ")
+
 					
 				if self.decideMyLog(u"Sql"): self.indiLOG.log(20,cmd)
 				p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
