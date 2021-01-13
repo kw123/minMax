@@ -1,15 +1,15 @@
 <?xml version="1.0"?>
 <MenuItems>
     <MenuItem id="defineDeviceStates">
-    <Name>Define Device + States to be tracked</Name>
+    <Name>Define Device + States / Variable to be tracked</Name>
     <ConfigUI>
-            <Field id="infoLabel1" type="label"> <Label>add devcies/states to be tracked</Label></Field>
-            <Field id="infoLabel10" type="label"> <Label> ... and don't forget to select measurements and click on confirm at the bottom (scroll down)</Label></Field>
+            <Field id="infoLabel1" type="label"> <Label>add devcies/states/varaiables to be tracked</Label></Field>
+            <Field id="infoLabel10" type="label"> <Label> ... and don't forget to select measurements and click on SAVE at the BOTTOM (scroll down)</Label></Field>
 
             <Field    id="MSG"   type="textfield" defaultValue="" > <Label> message from Plugin:</Label> </Field>
 
             <Field   id="device" type="menu" tooltip="you have to click on your choice to signal your entry" >
-                <Label>Select  Device:</Label>
+                <Label>Select  Device/variable:</Label>
                 <List class="self" filter="" method="filterDevicesThatQualify" dynamicReload="false"/>
                 <CallbackMethod>pickDeviceCALLBACK</CallbackMethod>
             </Field>
@@ -18,16 +18,20 @@
                 <Label>state:</Label>
                 <List class="self" filter="" method="filterStatesThatQualify" dynamicReload="true"/>
             </Field>
-            <Field  id="buttonConfirmdevstate" type="button"	tooltip="This will confirm  Device/State selection">
-                <Label>device / state:</Label><Title>SELECT</Title>
+            <Field  id="buttonConfirmdevstate" type="button"	tooltip="This will confirm  Device/State variable selection">
+                <Label>dev/state/varaiable:</Label><Title>SELECT</Title>
                 <CallbackMethod>buttonConfirmStateCALLBACK</CallbackMethod>
             </Field>
 
             <Field id="shortName"       type="textfield" defaultValue="" > <Label>Use shortName for generated tracking variable instead of device_state_xxx (no spaces):</Label> </Field>
+            <Field id="showM" visibleBindingValue="true"     type="checkbox" defaultValue="true" hidden="yes"></Field>
 
 
-            <Field id="infoLabelmeasures" type="label" visibleBindingId="showM" visibleBindingValue="true" > <Label>==>Now select the measures you like to track for specified dev/state/var. 
-    THEN click &lt;SAVE&gt; at the VERY-VERY bottom:</Label></Field>
+            <Field id="infoLabelmeasures" type="label" visibleBindingId="showM" visibleBindingValue="true" fontColor="orange"  > 
+				<Label>==>Now select the measures you like to track for specified dev/state/var. 
+    THEN click &lt;SAVE&gt; at the VERY-VERY bottom:</Label>
+			</Field>
+
 
             <Field  id="buttonSelectAll" type="button"	tooltip="" visibleBindingId="showM" visibleBindingValue="true" >
                 <Label>Measures:</Label><Title>SELECT ALL</Title>
@@ -39,8 +43,6 @@
                 <CallbackMethod>buttonDeSelectAllCALLBACK</CallbackMethod>
             </Field>
 
-
-            <Field id="showM" visibleBindingValue="true"     type="checkbox" defaultValue="true" hidden="yes"></Field>
 
 
             <Field id="thisHourMin"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>thisHour.......................-Min Value:</Label></Field>
@@ -183,14 +185,14 @@
             <Field id="formatNumbers"       type="textfield" defaultValue="%.1f" > <Label>format for Numbers:</Label> </Field>
  
             <Field  id="buttonConfirm" type="button"	tooltip="This will add Device/State">
-                <Label>To Add  to tracking     click....:</Label><Title>SAVE</Title>
+                <Label>To Add to tracking click....:</Label><Title>SAVE</Title>
                 <CallbackMethod>buttonConfirmCALLBACK</CallbackMethod>
             </Field>
     </ConfigUI>
     </MenuItem>
 
     <MenuItem id="removeDeviceStates">
-    <Name>Remove Device + States from tracking</Name>
+    <Name>Remove Device + States / Variable from tracking</Name>
     <ConfigUI>
             <Field id="infoLabel1" type="label"> <Label>remove devices/states from tracking</Label></Field>
 

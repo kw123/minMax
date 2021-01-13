@@ -1,3 +1,12 @@
+changes in V 7.12.16  @ 2021-01-13
+==================  
+
+1. fixed issue that variables could not be deselected
+2. prept for python3 
+3. added color and other improvements to menus
+
+
+
 changes in V 7.12.15  @ 2020-04-04
 ==================  
 
