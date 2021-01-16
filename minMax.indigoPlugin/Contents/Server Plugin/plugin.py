@@ -165,6 +165,9 @@ class Plugin(indigo.PluginBase):
 		self.subscribeVariable			= False
 		self.subscribeDevice			= False
 
+		self.pluginPrefs["postgreHelp2"] = "/Library/PostgreSQL/bin/psql indigo_history postgres "
+		self.pluginPrefs["postgreHelp1"] = "/Applications/Postgres.app/Contents/Versions/latest/bin/psql indigo_history postgres "
+
 		self.printConfigCALLBACK()
 
 		return
@@ -264,7 +267,8 @@ class Plugin(indigo.PluginBase):
 			pass
 
 		self.hourLast	= -99
-
+		
+		self.printConfigCALLBACK()
 		return True, valuesDict
 
 
@@ -275,7 +279,7 @@ class Plugin(indigo.PluginBase):
 ####-----------------   ---------
 	def printConfigCALLBACK(self, printDevId=""):
 		try:
-			self.indiLOG.log(20,u"Configuration: ... date format: "+ self.timeFormatDisplay +u" ==> "+ (datetime.datetime.now()).strftime(self.timeFormatDisplay) )
+			self.indiLOG.log(20,u"Configuration: " )
 			header = u"Dev/Var-Name-----                 ID               State   ignoreLess ignoreGreater  format  "
 			self.indiLOG.log(20,header+u"tracking measures: -------")
 			for devId in self.devList:
@@ -299,6 +303,15 @@ class Plugin(indigo.PluginBase):
 							self.indiLOG.log(20,indigo.variables[int(devId)].name.ljust(28) +  devId.rjust(11)+ state.rjust(17) + out+measures )
 						else:           
 							self.indiLOG.log(20,indigo.devices[int(devId)].name.ljust(28)   +  devId.rjust(11)+ state.rjust(17) + out+measures  )
+			self.indiLOG.log(20,u"config parameters  foldername         >{}<".format(self.variFolderName) )
+			self.indiLOG.log(20,u"config parameters  refreshRate        >{}<".format(self.refreshRate) )
+			self.indiLOG.log(20,u"config parameters  liteOrPsql         >{}<".format(self.liteOrPsql ) )
+			self.indiLOG.log(20,u"config parameters  refreshRate        >{}<[secs]".format( self.refreshRate) )
+			self.indiLOG.log(20,u"config parameters  liteOrPsql         >{}<".format(self.liteOrPsql) )
+			self.indiLOG.log(20,u"config parameters  liteOrPsqlString   >{}<".format(self.liteOrPsqlString) )
+			self.indiLOG.log(20,u"config parameters  postgresPassword   >{}<".format(self.postgresPassword ) )
+			self.indiLOG.log(20,u"config parameters  timeFormatDisplay  >{}<".format(self.timeFormatDisplay ) )
+
 		except  Exception, e:
 			if len(unicode(e)) > 5:
 				self.indiLOG.log(40,u"printConfigCALLBACK error in  Line '%s' ;  error='%s'" % (sys.exc_traceback.tb_lineno, e) )

@@ -55,20 +55,20 @@
         visibleBindingValue="psql"
         id="liteOrPsqlString"
         type="textfield"
-        defaultValue="/Library/PostgreSQL/bin/psql indigo_history postgres ">
+        defaultValue="/Applications/Postgres.app/Contents/Versions/latest/bin/psql indigo_history postgres">
         <Label>postgres command string </Label>
     </Field>
     <Field id="postgreHelp2"  type="textfield" defaultValue="/Library/PostgreSQL/bin/psql indigo_history postgres " 
         visibleBindingId="liteOrPsql"
         visibleBindingValue="psql" 
         readOnly="yes">
-        <Label>postgres command example :</Label>
+        <Label>postgres command example (full install):</Label>
     </Field>
-    <Field id="postgreHelp1"  type="textfield" defaultValue="/Applications/Postgres.app/Contents/Versions/9.5/bin/psql  indigo_history postgres " 
+    <Field id="postgreHelp1"  type="textfield" defaultValue="/Applications/Postgres.app/Contents/Versions/latest/bin/psql indigo_history postgres " 
         visibleBindingId="liteOrPsql"
         visibleBindingValue="psql"
         readOnly="yes">
-        <Label>postgres command example :</Label>
+        <Label>postgres command example (app install):</Label>
     </Field>
     
     <Field

@@ -1,3 +1,9 @@
+changes in V 7.12.17  @ 2021-01-16
+==================  
+
+1. added debug statements and clarified menues
+
+
 changes in V 7.12.16  @ 2021-01-13
 ==================  
 
