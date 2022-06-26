@@ -3,7 +3,18 @@
     <MenuItem id="defineDeviceStates">
     <Name>Define Device + States / Variable to be tracked</Name>
     <ConfigUI>
-            <Field id="infoLabel1" type="label"> <Label>add devcies/states/varaiables to be tracked</Label></Field>
+            <Field id="infoLabel1" type="label"> <Label>add devcies/states/varaiables to be tracked
+1. select device and state
+2. then select which time window and which measure should be tracked.
+
+Then the plugin will create variables:
+ deviceName__stateName__timeWindow_Measurement
+eg:
+Hue_light_0_48_Küche_ceiling_1__redLevel__thisHour_Count1
+Hue_light_0_48_Küche_ceiling_1__redLevel__last7Days_End
+s-11-govee-mini__Temperature__thisHour_Ave
+</Label></Field>
+
             <Field id="infoLabel10" type="label"> <Label> ... and don't forget to select measurements and click on SAVE at the BOTTOM (scroll down)</Label></Field>
 
             <Field    id="MSG"   type="textfield" defaultValue="" > <Label> message from Plugin:</Label> </Field>

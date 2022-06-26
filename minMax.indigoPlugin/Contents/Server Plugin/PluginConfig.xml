@@ -4,7 +4,9 @@
         <Label>minMax Plugin                          Developed by Karl Wachs</Label>
     </Field>
     <Field id="infoLabel2" type="label">
-        <Label>Create variables with min/max/ave of device-states for this/last hour/day/week/month</Label>
+        <Label>Create variables with min/max/ave of device-states for this/last hour/day/week/month
+In menue: Define Device + States to be tracked 
+</Label>
     </Field>
     
     <Field id="simpleSeparator11" type="separator"/>
@@ -90,22 +92,11 @@
         <Label>postgres password (leave blank if not set)</Label>
     </Field>
 
- 
-
     <Field id="infoLabel99" type="label"> <Label>debug level for plugin:</Label>  </Field>
         
     <Field    id="debugLoop"        type="checkbox"  defaultValue="false"       tooltip=""> <Label> Debug...                   ... (1) Loop:</Label>  </Field>
     <Field    id="debugSql"         type="checkbox"  defaultValue="false"       tooltip=""> <Label>     ... (2) SQL:</Label>  </Field>
     <Field    id="debugSetup"       type="checkbox"  defaultValue="false"       tooltip=""> <Label>     ... (3) Setup:</Label>  </Field>
     <Field    id="debugall"         type="checkbox"  defaultValue="false"       tooltip=""> <Label>     ... (11) all of the above .. everything:</Label>  </Field>
-
-    <Field    id="logFileActive2"      type="menu"      defaultValue="standard"      > <Label> send logs to ..:</Label>
-        <List>
-            <Option value="indigo"   > .. Perceptive Automation/Indigo x/Logs/com.karlwachs.minMax/plugin.log </Option>
-        </List>
-    </Field>
-
-
-
 
 </PluginConfig>

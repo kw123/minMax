@@ -1,3 +1,14 @@
+changes in V 2022.13.17  @ 2022-06-26
+==================  
+
+1. requires indigo 2022 +, runs under py3
+2. streamlined loggging
+3. variable names are now 
+  deviceName__state__TimeWindow_Measurement
+eg: Hue_light_0_48_Küche_ceiling_1__redLevel__thisHour_Count1
+added an extra _ after device name and stateName
+
+
 changes in V 7.13.17  @ 2022-03-30
 ==================  
 
