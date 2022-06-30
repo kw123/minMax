@@ -665,7 +665,7 @@ class Plugin(indigo.PluginBase):
 			if pri !="": pick = pri
 			else:		 pick =  'cumtime'
 			outFile		= self.indigoPreferencesPluginDir+"timeStats"
-			indigo.server.log( " print time track stats to: {}.dump / txt  with option: {}".format(outFile, pick)
+			indigo.server.log( " print time track stats to: {}.dump / txt  with option: {}".format(outFile, pick))
 			self.pr.dump_stats(outFile+".dump")
 			sys.stdout 	= open(outFile+".txt", "w")
 			stats 		= pstats.Stats(outFile+".dump")
