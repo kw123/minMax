@@ -1,3 +1,18 @@
+
+changes in V 2022.13.21  @ 2023-02-03
+==================  
+
+1. moved preSelectDevices() out of interactive menu part to avoid timeouts on slower MACs with larger number of devices
+   of older indigo on new mac Mx 
+
+
+changes in V 2022.13.19  @ 2023-02-02
+==================  
+
+1. added special debug 
+2. added short name to printout of tracked devices
+
+
 changes in V 2022.13.18  @ 2022-06-30
 ==================  
 

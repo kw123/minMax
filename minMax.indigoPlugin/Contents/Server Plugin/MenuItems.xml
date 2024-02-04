@@ -21,7 +21,7 @@ s-11-govee-mini__Temperature__thisHour_Ave
 
             <Field   id="device" type="menu" tooltip="you have to click on your choice to signal your entry" >
                 <Label>Select  Device/variable:</Label>
-                <List class="self" filter="" method="filterDevicesThatQualify" dynamicReload="false"/>
+                <List class="self" filter="" method="filterDevicesThatQualify" dynamicReload="true"/>
                 <CallbackMethod>pickDeviceCALLBACK</CallbackMethod>
             </Field>
 
@@ -30,7 +30,7 @@ s-11-govee-mini__Temperature__thisHour_Ave
                 <List class="self" filter="" method="filterStatesThatQualify" dynamicReload="true"/>
             </Field>
             <Field  id="buttonConfirmdevstate" type="button"	tooltip="This will confirm  Device/State variable selection">
-                <Label>dev/state/varaiable:</Label><Title>SELECT</Title>
+                <Label>dev/state/variable:</Label><Title>SELECT</Title>
                 <CallbackMethod>buttonConfirmStateCALLBACK</CallbackMethod>
             </Field>
 
@@ -60,7 +60,7 @@ s-11-govee-mini__Temperature__thisHour_Ave
             <Field id="thisHourMax"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
             <Field id="thisHourAve"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Ave Value:</Label></Field>
             <Field id="thisHourDateMin" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
-            <Field id="thisHourDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
+            <Field id="thisHourDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of max:</Label></Field>
             <Field id="thisHourCount"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="thisHourCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="thisHourStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
@@ -75,7 +75,7 @@ s-11-govee-mini__Temperature__thisHour_Ave
             <Field id="lastHourMax"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
             <Field id="lastHourAve"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Ave Value:</Label></Field>
             <Field id="lastHourDateMin" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
-            <Field id="lastHourDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
+            <Field id="lastHourDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of max:</Label></Field>
             <Field id="lastHourCount"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="lastHourCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="lastHourStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
@@ -90,7 +90,7 @@ s-11-govee-mini__Temperature__thisHour_Ave
             <Field id="thisDayMax"     visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
             <Field id="thisDayAve"     visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Ave Value:</Label></Field>
             <Field id="thisDayDateMin" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
-            <Field id="thisDayDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
+            <Field id="thisDayDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of max:</Label></Field>
             <Field id="thisDayCount"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="thisDayCount1"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="thisDayStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
@@ -105,7 +105,7 @@ s-11-govee-mini__Temperature__thisHour_Ave
             <Field id="lastDayMax"     visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
             <Field id="lastDayAve"     visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Ave Value:</Label></Field>
             <Field id="lastDayDateMin" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
-            <Field id="lastDayDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
+            <Field id="lastDayDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of max:</Label></Field>
             <Field id="lastDayCount"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="lastDayCount1"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="lastDayStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
@@ -120,7 +120,7 @@ s-11-govee-mini__Temperature__thisHour_Ave
             <Field id="last7DaysMax"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
             <Field id="last7DaysAve"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Ave Value:</Label></Field>
             <Field id="last7DaysDateMin" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
-            <Field id="last7DaysDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
+            <Field id="last7DaysDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of max:</Label></Field>
             <Field id="last7DaysCount"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="last7DaysCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="last7DaysStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
@@ -135,7 +135,7 @@ s-11-govee-mini__Temperature__thisHour_Ave
             <Field id="thisWeekMax"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
             <Field id="thisWeekAve"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Ave Value:</Label></Field>
             <Field id="thisWeekDateMin" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
-            <Field id="thisWeekDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
+            <Field id="thisWeekDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of max:</Label></Field>
             <Field id="thisWeekCount"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="thisWeekCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="thisWeekStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
@@ -150,7 +150,7 @@ s-11-govee-mini__Temperature__thisHour_Ave
             <Field id="lastWeekMax"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
             <Field id="lastWeekAve"    visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Ave Value:</Label></Field>
             <Field id="lastWeekDateMin" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
-            <Field id="lastWeekDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
+            <Field id="lastWeekDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of max:</Label></Field>
             <Field id="lastWeekCount"  visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="lastWeekCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="lastWeekStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
@@ -165,7 +165,7 @@ s-11-govee-mini__Temperature__thisHour_Ave
             <Field id="thisMonthMax"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
             <Field id="thisMonthAve"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Ave Value:</Label></Field>
             <Field id="thisMonthDateMin" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
-            <Field id="thisMonthDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
+            <Field id="thisMonthDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of max:</Label></Field>
             <Field id="thisMonthCount" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="thisMonthCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="thisMonthStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
@@ -180,7 +180,7 @@ s-11-govee-mini__Temperature__thisHour_Ave
             <Field id="lastMonthMax"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Max Value:</Label></Field>
             <Field id="lastMonthAve"   visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Ave Value:</Label></Field>
             <Field id="lastMonthDateMin" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
-            <Field id="lastMonthDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of min:</Label></Field>
+            <Field id="lastMonthDateMax" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Date of max:</Label></Field>
             <Field id="lastMonthCount" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count:</Label></Field>
             <Field id="lastMonthCount1" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="lastMonthStdDev" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>

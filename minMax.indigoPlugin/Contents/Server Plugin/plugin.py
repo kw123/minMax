@@ -144,7 +144,7 @@ class Plugin(indigo.PluginBase):
 				exit()
 				
 		self.debugLevel = []
-		for d in ["Loop","Sql","Setup","all"]:
+		for d in ["Loop","Sql","Setup","Special","all"]:
 			if self.pluginPrefs.get("debug"+d, False): self.debugLevel.append(d)
 		self.timeFormatInternal			= "%Y-%m-%d-%H:%M:%S"
 		self.refreshRate        		= float(self.pluginPrefs.get("refreshRate",5))
@@ -160,6 +160,9 @@ class Plugin(indigo.PluginBase):
 
 		self.checkcProfile()
 
+		self.lastpreSelectDevices		= 0.
+
+		self.actionList					= ""
 
 		self.cleandevList()
 		self.resetOldValues()
@@ -182,6 +185,7 @@ class Plugin(indigo.PluginBase):
 
 		self.printConfigCALLBACK()
 
+
 		return
 
 
@@ -191,21 +195,24 @@ class Plugin(indigo.PluginBase):
 			delID=[]
 			for devId in self.devList:
 				if "devOrVar" not in self.devList[devId]:
+					self.indiLOG.log(30,"deleting var-id:{}  from tracking, devOrVar not in list  ".format(devId) )
 					delID.append(devId)
 				if "states" not in self.devList[devId]:
+					self.indiLOG.log(30,"deleting dev-id:{}  from tracking >>states<< not in list".format(devId) )
 					delID.append(devId)
 			for devId in delID:
 				try:
+					self.indiLOG.log(30,"deleting dev-id:{}  from tracking:".format(devId) )
 					del self.devList[devId]
 				except:
 					pass
 
 			for devId in self.devList:
-				#self.indiLOG.log(10,"devId devList "+ "{}".format(devId)+ " " +unicosde(self.devList[devId]) )
 				if "states" not in self.devList[devId]: continue
-				remState =[]
+				remState = []
 				for state in self.devList[devId]["states"]:
 					if len(state)< 2:
+						self.indiLOG.log(30,"deleting dev-id:{}/state:{}<   from tracking state mot properly defined".format(devId, state) )
 						remState.append(state)
 					if "ignoreLess"    not in self.devList[devId]["states"][state]:
 							self.devList[devId]["states"][state]["ignoreLess"]			= -9876543210.
@@ -222,11 +229,13 @@ class Plugin(indigo.PluginBase):
 					delTW =[]
 					for TW in self.devList[devId]["states"][state]["measures"]:
 						if TW not in _timeWindows:
+							self.indiLOG.log(30,"deleting dev-id:{}/state:{}   from tracking >>TW<< not in list".format(devId, state) )
 							delTW.append(TW)
 						else:
 							delMes =[]
 							for MB in self.devList[devId]["states"][state]["measures"][TW]:
 								if MB not in _MeasBins:
+									self.indiLOG.log(30,"deleting dev-id:{}/state:{}  from tracking >>MB<< not in list".format(devId, state) )
 									delMes.append(MB)
 							for MB in delMes:
 								del self.devList[devId]["states"][state]["measures"][TW][MB]
@@ -257,7 +266,7 @@ class Plugin(indigo.PluginBase):
 	def validatePrefsConfigUi(self, valuesDict):
 
 		self.debugLevel = []
-		for d in ["Loop","Sql","Setup","all"]:
+		for d in ["Loop","Sql","Setup","Special","all"]:
 			if valuesDict["debug"+d]: self.debugLevel.append(d)
 
 		self.variFolderName     = valuesDict["variFolderName"]
@@ -281,6 +290,8 @@ class Plugin(indigo.PluginBase):
 		return True, valuesDict
 
 
+
+
 ####-----------------   ---------
 	def dummyCALLBACK(self):
 		
@@ -290,11 +301,13 @@ class Plugin(indigo.PluginBase):
 		try:
 			outTotal = "Configuration: "
 			#         12345678901234567890123456789012345 12345678901212345678901234567 123456789012312345678901234
-			header = "Dev/Var-Name------------                 ID                  State   ignoreLess  ignoreGreater     format  "
-			outTotal += "\n"+header+"tracking measures: -------"
-			for devId in self.devList:
-				if devId == printDevId or printDevId== "":
+			header = "Short_Name   Dev/Var-Name-----------------------------  ID         State                  ignoreLess ignoreGreater    format  "
+			outTotal += "\n"+header+" tracking     measures: -------"
+			for devId in copy.deepcopy(self.devList):
+				if devId == printDevId or printDevId == "":
+					
 					for state in self.devList[devId]["states"]:
+						shortName = self.devList[devId]["states"][state]["shortName"]
 						measures = ""
 						for TW in self.devList[devId]["states"][state]["measures"]: # TW = time Window
 							ssLine = ""
@@ -302,7 +315,7 @@ class Plugin(indigo.PluginBase):
 								if  self.devList[devId]["states"][state]["measures"][TW][MB]:
 									if ssLine == "":
 										if measures != "":
-											ssLine += "\n ".ljust(len(header)+1 )
+											ssLine += "\n ".ljust(len(header)+2 )
 										ssLine += (TW+"-").ljust(12)
 									ssLine += MB+" "
 							measures += ssLine
@@ -311,21 +324,29 @@ class Plugin(indigo.PluginBase):
 
 						out = "{:13.0f}{:14.0f} '{:>8}'  ".format(self.devList[devId]["states"][state]["ignoreLess"], self.devList[devId]["states"][state]["ignoreGreater"], self.devList[devId]["states"][state]["formatNumbers"])
 
-						if self.devList[devId]["devOrVar"] ==  "Var":           
-							outTotal += "\n{:35} {:>12} {:>17} {}{}".format(indigo.variables[int(devId)].name, devId, state, out, measures) 
-
+						if self.devList[devId]["devOrVar"] ==  "Var":  
+							try:         
+								outTotal += "\n{:13}{:40} {:>12} {:>19} {}{}".format(shortName, indigo.variables[int(devId)].name, devId, state, out, measures) 
+							except	Exception:
+								outTotal += "\n===> var: id:{} does not exist, removing".format(devId) 
+								del self.devList[devId]
 						else:           
-							outTotal += "\n{:35} {:>12} {:>17} {}{}".format(indigo.devices[int(devId)].name,   devId, state, out, measures) 
+							try:         
+								outTotal += "\n{:13}{:40} {:>12} {:>19} {}{}".format(shortName, indigo.devices[int(devId)].name,   devId, state, out, measures) 
+							except	Exception:
+								outTotal += "\n===> dev: id:{} does not exist, removing".format(devId) 
+								del self.devList[devId]
 
 			self.indiLOG.log(20,outTotal )
 			self.indiLOG.log(20,"config parameters  foldername         >{}<".format(self.variFolderName) )
-			self.indiLOG.log(20,"config parameters  refreshRate        >{}<".format(self.refreshRate) )
-			self.indiLOG.log(20,"config parameters  liteOrPsql         >{}<".format(self.liteOrPsql ) )
-			self.indiLOG.log(20,"config parameters  refreshRate        >{}<[secs]".format( self.refreshRate) )
-			self.indiLOG.log(20,"config parameters  liteOrPsql         >{}<".format(self.liteOrPsql) )
-			self.indiLOG.log(20,"config parameters  liteOrPsqlString   >{}<".format(self.liteOrPsqlString) )
-			self.indiLOG.log(20,"config parameters  postgresPassword   >{}<".format(self.postgresPassword ) )
 			self.indiLOG.log(20,"config parameters  timeFormatDisplay  >{}<".format(self.timeFormatDisplay ) )
+			self.indiLOG.log(20,"config parameters  refreshRate        >{}<[secs]".format( self.refreshRate) )
+			self.indiLOG.log(20,"config parameters  sqlite Or Psql     >{}<".format(self.liteOrPsql ) )
+			if self.liteOrPsql == "psql":
+				self.indiLOG.log(20,"config parameters  psqlString         >{}<".format(self.liteOrPsqlString) )
+				self.indiLOG.log(20,"config parameters  postgresPassword   >{}<".format(self.postgresPassword ) )
+			self.pluginPrefs["devList"]	= json.dumps(self.devList)
+			indigo.server.savePluginPrefs()
 
 		except	Exception:
 			self.logger.error("", exc_info=True)
@@ -403,7 +424,7 @@ class Plugin(indigo.PluginBase):
 			del self.devList[dd]
 		self.devIDSelectedExist 	= 0
 		valuesDict["state"] = ""
-		self.preSelectDevices()
+		self.actionList += "preSelectDevices"
 		self.resetOldValues()
 		self.indiLOG.log(20," dev/state / var: {} - {} - {} / removed from tracking".format(theName, devId, state))
 		return valuesDict
@@ -433,7 +454,7 @@ class Plugin(indigo.PluginBase):
 ########### --- add dev/states to tracking 
 ####-----------------   ---------
 	def pickDeviceCALLBACK(self,valuesDict="",typeId=""):               # Select only device/properties that are supported
-		if self.decideMyLog("Setup"): self.indiLOG.log(10,unicode(valuesDict))
+		if self.decideMyLog("Setup"): self.indiLOG.log(10,str(valuesDict))
 		if valuesDict["device"].find("-V") >-1:
 			self.devOrVar = "Var"
 			self.devIDSelected= int(valuesDict["device"][:-2])# drop -V
@@ -444,6 +465,7 @@ class Plugin(indigo.PluginBase):
 
 ####-----------------   ---------
 	def filterDevicesThatQualify(self,filter="",valuesDict="",typeId=""):               
+		self.actionList += "preSelectDevices"
 		retList= copy.copy(self.listOfPreselectedDevices )
 		for devId in self.devList:
 			if self.devList[devId]["devOrVar"] == "Var":
@@ -458,7 +480,7 @@ class Plugin(indigo.PluginBase):
 ####-----------------   ---------
 	def filterStatesThatQualify(self,filter="",valuesDict="",typeId=""):                
 	
-		if self.devIDSelected ==0: return [(0,0)]
+		if self.devIDSelected == 0: return [(0,0)]
 
 		retList=[]
 		if self.devOrVar == "Var":
@@ -466,7 +488,7 @@ class Plugin(indigo.PluginBase):
 			return retList
 		
 		dev=indigo.devices[self.devIDSelected]
-		retList=[]
+		retList = []
 		theStates = dev.states.keys()
 		for test in theStates:
 				count=0
@@ -487,6 +509,7 @@ class Plugin(indigo.PluginBase):
 		return retList
 ####-----------------   ---------
 	def buttonConfirmStateCALLBACK(self,valuesDict="",typeId=""):               # Select only device/properties that are supported
+
 		devId= "{}".format(self.devIDSelected)
 
 		if len("{}".format(self.devIDSelected)) < 2:
@@ -563,11 +586,13 @@ class Plugin(indigo.PluginBase):
 			if len(devId) < 3:
 				valuesDict["MSG"] = "please select device"
 				return valuesDict
+
 			
 			if self.devOrVar == "Var":
 				dev=indigo.variables[int(self.devIDSelected)]
 			else:
 				dev=indigo.devices[int(self.devIDSelected)]
+
 
 			if devId not in self.devList:
 				self.devList[devId] = {}
@@ -593,6 +618,7 @@ class Plugin(indigo.PluginBase):
 				self.devList[devId]["states"][state]["ignoreGreater"]	= +9876543210.
 				self.devList[devId]["states"][state]["formatNumbers"]	= "%.1f"
 				self.devList[devId]["states"][state]["shortName"]		= ""
+
 				
 			for TW in  _timeWindows:
 				use=False
@@ -602,6 +628,7 @@ class Plugin(indigo.PluginBase):
 						anyOne = True
 					else:    
 						self.devList[devId]["states"][state]["measures"][TW][MB]=False
+
 
 			try: 	self.devList[devId]["states"][state]["ignoreLess"]		= float(valuesDict["ignoreLess"])
 			except:	pass
@@ -613,14 +640,14 @@ class Plugin(indigo.PluginBase):
 
 			self.saveNow 		= True
 			self.devIDSelected	= 0
-			self.preSelectDevices()
+			self.actionList += "preSelectDevices"
 
 			self.printConfigCALLBACK(printDevId=devId)
 		except	Exception:
-			self.logger.error("dataIn: {}".format(dataIn), exc_info=True)
+			self.logger.error("", exc_info=True)
 
 		valuesDict["showM"] = False          
-		if not anyOne: valuesDict["MSG"] = "no measure selected-- no variable will be cretaed"
+		if not anyOne: valuesDict["MSG"] = "no measure selected-- no variable will be created"
 
 		return valuesDict
 
@@ -754,6 +781,7 @@ class Plugin(indigo.PluginBase):
 		self.QList = queue.Queue()
 		self.dorunConcurrentThread()
 		self.checkcProfileEND()
+		self.pluginPrefs["devList"]	= json.dumps(self.devList)
 
 
 		if self.quitNow !="":
@@ -784,13 +812,23 @@ class Plugin(indigo.PluginBase):
 				cond2	= not self.QList.empty()
 				cond3	= nowTT - lastSqlTime > nextMinTime
 				#self.indiLOG.log(10,"timers: " +"{}".format(cond1) +"  "+"{}".format(cond2) +"  "+"{}".format(cond3) +"  "+"{}".format(allUpdates))
+				if self.actionList != "" or self.hourLast == -99:
+					if "doDateLimits" in self.actionList:
+						self.doDateLimits()
+					if "preSelectDevices" in self.actionList:
+						self.preSelectDevices()
+					if "resetOldValues" in self.actionList:
+						self.resetOldValues()
+					self.actionList = ""	
+
 				if  (cond1 or cond2) and cond3:
 					if nowTT - lastSqlTime > nextMinTime: 
 						dd= datetime.datetime.now()
-						day 		=dd.day         # day in month
-						wDay		=dd.weekday()   # day of week
-						hourNow		=dd.hour        # hour in day
+						day 		= dd.day         # day in month
+						wDay		= dd.weekday()   # day of week
+						hourNow		= dd.hour        # hour in day
 
+							
 						if hourNow != self.hourLast: # recalculate the limits
 							self.doDateLimits() 
 							self.preSelectDevices()
@@ -808,8 +846,10 @@ class Plugin(indigo.PluginBase):
 						lastSqlTime 	= nowTT
 
 				for ii in range(20):
+					if self.actionList != "": break
 					self.sleep(1)
-					if self.hourLast ==-99: break
+					if self.hourLast == -99: break
+				if self.actionList != "": continue
 				self.checkConfig()
 				self.checkcProfile()
 					
@@ -818,7 +858,6 @@ class Plugin(indigo.PluginBase):
 		except Exception:
 			pass
 
-		self.pluginPrefs["devList"] =json.dumps(self.devList)
 		return
 
 
@@ -844,7 +883,7 @@ class Plugin(indigo.PluginBase):
 			if nVars ==0 and self.subscribeVariable: self.quitNow =" restart due to no variables subcriptions needed"
 			if nDevs ==0 and self.subscribeDevice:  self.quitNow =" restart due to no variables subcriptions needed"
 		except	Exception:
-			self.logger.error("dataIn: {}".format(dataIn), exc_info=True)
+			self.logger.error("devId: {}".format(devId), exc_info=True)
 
 
 
@@ -859,7 +898,7 @@ class Plugin(indigo.PluginBase):
 					self.oldValues[devId][state] = {"sum":-1, "nv":-1}
 
 		except	Exception:
-			self.logger.error("dataIn: {}".format(dataIn), exc_info=True)
+			self.logger.error("devId: {}".format(devId), exc_info=True)
 
 
 ####-----------------  do the calculations and sql statements  ---------
@@ -888,7 +927,7 @@ class Plugin(indigo.PluginBase):
 						else:                            
 							devName= indigo.devices[int(devId)].name
 					except  Exception as e:
-						if unicode(e).find("timeout waiting") > -1:
+						if str(e).find("timeout waiting") > -1:
 							self.logger.error("communication to indigo is interrupted", exc_info=True)
 							return
 						self.indiLOG.log(40," error; device with indigoID = {} does not exist, removing from tracking".format(devId)) 
@@ -898,7 +937,7 @@ class Plugin(indigo.PluginBase):
 				#_timeWindows   =["thisHour","lastHour","thisDay","lastDay","thisWeek","lastWeek","thisMonth","lastMonth","last7Days"]
 				#_MeasBins     =["Min","Max","DateMin","DateMax","Ave","Count","Count1","StdDev""]
 
-				states =self.devList[devId]["states"]
+				states = self.devList[devId]["states"]
 				for state in states:
 					params				= states[state]
 					if params["shortName"] != "":
@@ -944,6 +983,10 @@ class Plugin(indigo.PluginBase):
 								
 			for devId in delList:
 				del self.devList[devId]
+			if len(delList) > 0:
+				self.pluginPrefs["devList"]	= json.dumps(self.devList)
+				indigo.server.savePluginPrefs()
+
 		except	Exception:
 			self.logger.error("", exc_info=True)
 		return allUpdates
@@ -951,7 +994,7 @@ class Plugin(indigo.PluginBase):
 ####-----------------  do the calculations and sql statements  ---------
 	def doDateLimits(self):
 #       self.dateLimits=[["2015-11-00 00:00:00","2015-12-00 00:00:00"],["2015-12-00 00:00:00","2015-12-12 00:00:00"]]
-
+		
 		try:
 			now				= time.time()
 			dd				= datetime.datetime.now()
@@ -1020,18 +1063,18 @@ class Plugin(indigo.PluginBase):
 				self.indiLOG.log(10,"first-Date:  {}".format(self.firstDate))
 				self.indiLOG.log(10,"date-limits: {}".format(self.dateLimits))
 		except	Exception:
-			self.logger.error("dataIn: {}".format(dataIn), exc_info=True)
+			self.logger.error("", exc_info=True)
 		return 
 					
 
 
 
 ####----------------- do the sql statement  ---------
-	def doSQL(self,devId,state,devOrVar): 
+	def doSQL(self, devId ,state, devOrVar): 
 		dataOut = []
 		ii 		= 0
 		try:
-			while ii<3:
+			while ii < 3:
 
 				if devOrVar== "Dev":
 					sql2 = state+" from device_history_"+"{}".format(devId)
@@ -1062,7 +1105,7 @@ class Plugin(indigo.PluginBase):
 			if self.decideMyLog("Sql"): self.indiLOG.log(10,"data-out: "+ret[:300])
 			if self.decideMyLog("Sql"): self.indiLOG.log(10,"err-out:  "+err[:300])
 		except	Exception:
-			self.logger.error("dataIn: {}".format(dataIn), exc_info=True)
+			self.logger.error("devId:{} ,state:{}, devOrVar:{}".format(evId ,state, devOrVar), exc_info=True)
 		
 		return dataOut
 		
@@ -1182,21 +1225,21 @@ class Plugin(indigo.PluginBase):
 
 ####----------------- prep sql return data  ---------
 	def removeDoublesInSQL(self,dataLines,ignoreLess,ignoreGreater):    # remove doubles same date/timestamp            
-		dataOut=[]
+		dataOut = []
 		sum 	= 0
 		nValues	= 0
 		try:
-			dataIn=dataLines.split("\n")
-			t= dataIn[0].split(";")
+			dataIn = dataLines.split("\n")
+			t = dataIn[0].split(";")
 			if len(t)!=2: return dataOut, sum, nValues
 			if self.decideMyLog("Loop"): self.indiLOG.log(10,"{}".format(t))
-			date=t[0]
+			date = t[0]
 			try:
-				value=self.getNumber(t[1])
+				value = self.getNumber(t[1])
 			except:
-				value=0.
+				value = 0.
 			if value == "x": 
-				value=0.
+				value = 0.
 			else:
 				dataOut.append((value,date))
 				nValues += 1
@@ -1226,7 +1269,7 @@ class Plugin(indigo.PluginBase):
 				sum 	+= value
 				nValues +=1
 
-			if len(dataOut) ==0:
+			if len(dataOut) == 0:
 				dataOut=[[0., ""]]
 
 		except	Exception:
@@ -1238,9 +1281,19 @@ class Plugin(indigo.PluginBase):
 
 ####-----------------   ---------
 	def preSelectDevices(self):             # Select only device/properties that are supported:  numbers, bool, but not props that have "words"
-		self.listOfPreselectedDevices=[]
-		self.devIDSelectedToTypeandName={}
 
+		if time.time() - self.lastpreSelectDevices < 20: return # only every 10 secs max
+		
+		timeSpend = time.time()
+		temp_listOfPreselectedDevices = []
+		temp_devIDSelectedToTypeandName = {}
+
+		devMax = ''
+		stTimeMax = 0
+		countMax = 0
+		avTime  = 0
+		countStates = 0
+		countAllStates = 0
 
 		for theVar in indigo.variables:
 			val = theVar.value
@@ -1248,36 +1301,52 @@ class Plugin(indigo.PluginBase):
 			if x != "x":
 				try:
 					if "{}".format(theVar.id) in self.devList:
-						self.listOfPreselectedDevices.append(("{}".format(theVar.id)+ "-V", "=TRACKED--Var-{}".format(theVar.name)))
+						temp_listOfPreselectedDevices.append(("{}".format(theVar.id)+ "-V", "=TRACKED--Var-{}".format(theVar.name)))
 					else:
-						self.listOfPreselectedDevices.append(("{}".format(theVar.id)+ "-V", "Var-{}".format(theVar.name)))
+						temp_listOfPreselectedDevices.append(("{}".format(theVar.id)+ "-V", "Var-{}".format(theVar.name)))
 				except	Exception:
 					self.logger.error("", exc_info=True)
 
+		timeSpendDevs = time.time()
 		for dev in indigo.devices.iter():
 			theStates = dev.states.keys()
-			count =0
+			count = 0
+			stTime = time.time()
 			for test in theStates:
-				try:
-					if "Mode" in test or "All" in test or ".ui" in test:
-						skip= True
-					else:
-						skip= False
-				except:
-					skip=False
+				if "Mode" in test or "All" in test or ".ui" in test:
+					skip = True
+				else:
+					skip = False
+
 				if not skip:    
-					val= dev.states[test]
+					val = dev.states[test]
 					x = self.getNumber(val)
 					if x != "x" :
-						count +=1
-			if count>0:                                                 # add to the selection list
+						count += 1
+						break
+				countAllStates += 1	
+				countStates += 1	
+			if count > 0:                                                 # add to the selection list
 				try:
 					if "{}".format(dev.id) in self.devList:
-						self.listOfPreselectedDevices.append((dev.id, "=TRACKED--"+ dev.name))
+						temp_listOfPreselectedDevices.append((dev.id, "=TRACKED--{}".format(dev.name)))
 					else:
-						self.listOfPreselectedDevices.append((dev.id, dev.name))
+						temp_listOfPreselectedDevices.append((dev.id, dev.name))
 				except	Exception:
 					self.logger.error("", exc_info=True)
+			stTime = time.time() - stTime
+			if stTime > stTimeMax: 
+				devMax = dev.name
+				stTimeMax = stTime
+				countMax = count
+			avTime += stTime
+
+		self.indiLOG.log(20,"preSelectDevices finished, total secs used:{:.2f} ".format(time.time() - timeSpend))
+		self.listOfPreselectedDevices  = temp_listOfPreselectedDevices 
+		self.devIDSelectedToTypeandName = temp_devIDSelectedToTypeandName
+
+
+		self.lastpreSelectDevices = time.time()
 		return
 
 
@@ -1340,8 +1409,8 @@ class Plugin(indigo.PluginBase):
 
 					return "x"																		# all tests failed ... nothing there, return "
 			except:
-				return "x"																			# something failed eg unicode only ==> return ""
-			return "x"																				# should not happen just for safety
+				return "x"		
+			return "x"		
 
 
 
