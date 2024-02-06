@@ -52,7 +52,7 @@ _MeasBinsExplanation	= {"Min":				"min value in time bin",
 						   "DateMin":			"date-time when min value was in time bin",
 						   "DateMax":			"date-time when max value was in time bin",
 						   "Ave":				"average of values in time bin weighted with time",
-						   "AveSimple":			"average of values in time bin, simle sum/count",
+						   "AveSimple":			"average of values in time bin, simple sum/count",
 						   "Count":				"number of values in time bin",
 						   "Count1":			"number of values >0 in time bin ",
 						   "UpTime":			"% time when value was not 0",
@@ -1333,8 +1333,8 @@ class Plugin(indigo.PluginBase):
 						std = 0
 						for x in stdDev[TW]:
 							std += (x - dataOut[TW]["AveSimple"])**2
-						dataOut[TW]["StdDev"] = math.sqrt(std) / len(stdDev[TW])
-						#if  TW =="thisDay": self.indiLOG.log(10,"TW:{}  StdDev:{}, AveSimple**2:{}, len:{}; Count:{}, std dev:s{}".format(TW, dataOut[TW]["StdDev"], dataOut[TW]["AveSimple"], len(stdDev[TW]), dataOut[TW]["Count"], stdDev[TW] ))
+						dataOut[TW]["StdDev"] = math.sqrt(std / len(stdDev[TW]))
+						if  TW =="lastMonth": self.indiLOG.log(10,"TW:{}  StdDev:{:.5f}, AveSimple:{:.3f}, len:{}; Count:{}, std dev:{}".format(TW, dataOut[TW]["StdDev"], dataOut[TW]["AveSimple"], len(stdDev[TW]), dataOut[TW]["Count"], stdDev[TW] ))
 		except	Exception:
 			self.logger.error("dataIn: {}".format(dataIn), exc_info=True)
 				
