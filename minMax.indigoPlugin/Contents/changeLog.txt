@@ -1,3 +1,25 @@
+changes in V 2022.15.22  @ 2023-02-06
+==================  
+
+1. added 
+		measurement "consumption" = end value of period - start value of period
+		UpTime = % of time the value in the time window was not 0
+		Simple Average
+2. added other time bins 
+		day time,  night time , last 12 hours, previuos 12 hours
+
+3. fixed calculation of std deviation, the simplified formula does not work for LARGE numbers, back to general formula : sqrt(sum((xi-av)**2))/N
+
+3. added simple average to measures
+- before it was ONLY time weighted average as some of the data is not in regular time intervals and some values are longer valid that others. ie when a state is not upated on a fixed time slot basis
+  eg a lamp is off for 11, on for 1, off for 12 hours
+  simple average would give (0+1+0)/3 = 1/3
+  time weighted average would be  (0*11 + 1*1 * 0*12 )/24 = 1/24 instead of 1/3
+  now you have both.
+
+4. some print out improvements, shows definitions of time windows and measures 
+
+
 
 changes in V 2022.13.21  @ 2023-02-03
 ==================  
