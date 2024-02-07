@@ -52,9 +52,9 @@ _MeasBinsExplanation	= {"Min":				"min value in time bin",
 						   "DateMin":			"date-time when min value was in time bin",
 						   "DateMax":			"date-time when max value was in time bin",
 						   "Ave":				"average of values in time bin weighted with time",
-						   "StdDev":			"std devation around average in time bin",
+						   "StdDev":			"std deviation around average in time bin",
 						   "AveSimple":			"average of values in time bin, simple sum/count",
-						   "StdDevSimple":		"std devation around average in time bin, simple sum/count",
+						   "StdDevSimple":		"std deviation around average in time bin, simple sum/count",
 						   "Count":				"number of values in time bin",
 						   "Count1":			"number of values >0 in time bin ",
 						   "UpTime":			"% time when value was not 0",
@@ -986,7 +986,7 @@ class Plugin(indigo.PluginBase):
 						varName	= devName.replace(" ","_")+"__"+state.replace(" ","_")+"__"
 						
 					dataSQL				= self.doSQL(devId,state,self.devList[devId]["devOrVar"])
-					dataClean,sum,nv	= self.removeDoublesInSQL(dataSQL, params["ignoreLess"], params["ignoreGreater"])
+					dataClean, sum, nv	= self.removeDoublesInSQL(dataSQL, params["ignoreLess"], params["ignoreGreater"])
 					if sum == self.oldValues[devId][state]["sum"] and nv == self.oldValues[devId][state]["nv"] and self.hourLast != -99: 
 						continue
 						
@@ -1123,18 +1123,17 @@ class Plugin(indigo.PluginBase):
 
 			dh1		= month0.strftime(self.timeFormatInternal)
 			d0		= (month0-datetime.timedelta(days=1))
-			dh0 	= (month0-datetime.timedelta(days=d0.day)).strftime(self.timeFormatInternal)    
+			d0	 	= (month0-datetime.timedelta(days=d0.day))
+			dh0 	= d0.strftime(self.timeFormatInternal)    
 			self.dateLimits["lastMonth"] = [dh0,dh1,0,0,0]
+
+			self.firstDate = (d0-datetime.timedelta(days=10)).strftime(self.timeFormatInternal)  
 
 			for TW in self.dateLimits:
 				self.dateLimits[TW][2] = (datetime.datetime.strptime(self.dateLimits[TW][0], self.timeFormatInternal)-self.epoch).total_seconds()
 				self.dateLimits[TW][3] = (datetime.datetime.strptime(self.dateLimits[TW][1], self.timeFormatInternal)-self.epoch).total_seconds()
 				self.dateLimits[TW][4] = max(1.,self.dateLimits[TW][3] - self.dateLimits[TW][2])
 
-
-			for TW in self.dateLimits:
-				if self.firstDate > self.dateLimits[TW][0]:
-						self.firstDate = self.dateLimits[TW][0]
 
 			if self.decideMyLog("Loop"): 
 				self.indiLOG.log(10,"first-Date:  {}".format(self.firstDate))
@@ -1193,49 +1192,59 @@ class Plugin(indigo.PluginBase):
 		addedSecsForLastBin	= 90.
 		dataOut 			= {}
 		dateErrorShown 		= False
+		valuesX 			= {}
+		normX 				= {}
+		TWNorm 				= {}
+		ddNow 				= datetime.datetime.now().strftime(self.timeFormatInternal)
+		TTnow 				= time.time()
 		for TW in self.dateLimits:
 			dataOut[TW] = {"Min": -987654321000.,"Max":987654321000.,"DateMin":"","DateMax":"","Start":-1234567890, "End":-1234567890,"Count":0.,"Count1":0,"StdDev":0,"StdDevSimple":0,"Ave":0,"AveSimple":0,"UpTime":0,"FirstEntryDate":"","FirstEntryValue":"","LastEntryDate":"","LastEntryValue":""}
-		valuesX = {}
-		normX = {}
-		TWNorm = {}
+
+		for TW in self.dateLimits:
+			valuesX[TW] = []
+			normX[TW] = []
+		self.indiLOG.log(10,"dataIn=====: {} ".format( dataIn[10]))
+
 		try:
-
-
-			for TW in self.dateLimits:
-				valuesX[TW] = []
-				normX[TW] = []
 
 			nData = len(dataIn)
 			if nData > 0:
 
 				if dataIn[nData-1][1] != "":  # date time in data  of very last bin 
-					lastSecInData = (   datetime.datetime.strptime(dataIn[nData-1][1], self.timeFormatInternal) - self.epoch   ).total_seconds() 
+					lastSecInData = dataIn[nData-1][2] 
 				else:
-					lastSecInData = int(time.time())
+					lastSecInData = TTnow
 
 				for nn in range(nData):
-					line = dataIn[nn]
+					line 	= dataIn[nn]
 					date	= line[1]
+					dateTT  = line[2]
+					if type(dateTT) != type(1.0): 
+						self.indiLOG.log(10,"dataIn nn:{}, =====: {} ".format( dataIn[nn]))
+						continue
+
 					if date == "": continue
 					value	= self.getNumber(line[0])
 					if value == "x": continue
 
-					secondsDataPoint = (datetime.datetime.strptime(date, self.timeFormatInternal)-self.epoch).total_seconds()
+					secondsDataPoint = line[2]
 					if nn < nData - 1:
 						lastData = False
 						# next data time in secs
-						secondsNextDataPoint	= (datetime.datetime.strptime(dataIn[nn+1][1], self.timeFormatInternal)-self.epoch).total_seconds()
-						dateNext   = dataIn[nn+1][1]
+						secondsNextDataPoint	= dataIn[nn+1][2]
+						dateNext   	= dataIn[nn+1][1]
+						dateNextTT  = dataIn[nn+1][2]
 					else: 				
 						lastData = True
 						secondsNextDataPoint	= lastSecInData + addedSecsForLastBin # last measurement point + 90 secs 
-						dateNext 	= "9999-12-01-12:33:12"
+						dateNext 	= ddNow
+						dateNextTT  = TTnow
 
 					for TW in self.dateLimits:
 						try:
 							#if TW =="thisDay": self.indiLOG.log(10,"{}  {:.1f} nextDate:{}, dateLimits:{}, tests:{}-{}, lastData:{}".format( date, value, dateNext, self.dateLimits[TW], dateNext < self.dateLimits[TW][0], dateNext > self.dateLimits[TW][1] , lastData))
-							if dateNext < self.dateLimits[TW][0]: 					continue
-							if dateNext > self.dateLimits[TW][1] and not lastData: continue
+							if dateNextTT < self.dateLimits[TW][2]: 					continue
+							if dateNextTT > self.dateLimits[TW][3] and not lastData:	continue
 
 							#_MeasBins       =["Min","Max","DateMin","DateMax","Ave","Count","Count ,..
 							# self.dateLimits[TW]	[0] = start datetime string 
@@ -1260,11 +1269,16 @@ class Plugin(indigo.PluginBase):
 								secondsEffective		   		=	secondsNextDataPoint - secondsDataPoint
 								test = 3
 
-							if  date  >= self.dateLimits[TW][0] and dataOut[TW]["FirstEntryDate"] =="":  ## use last below date range?
+							try:	testL = dateTT  >= self.dateLimits[TW][2] and dataOut[TW]["FirstEntryDate"] == ""
+							except:	continue
+
+							if  testL:  ## use last below date range?
 								dataOut[TW]["FirstEntryDate"] 		= date 				# 
 								dataOut[TW]["FirstEntryValue"]		= value 			# 
 
-							if  date  < self.dateLimits[TW][0]:  ## use last below date range?
+							try: 	testL = dateTT  < self.dateLimits[TW][2]
+							except:	continue
+							if  testL:  ## use last below date range?
 								dataOut[TW]["Start"] 				= value 				# Start value
 								dataOut[TW]["End"] 					= value 				# 
 								dataOut[TW]["Min"] 					= value 				# min
@@ -1288,7 +1302,10 @@ class Plugin(indigo.PluginBase):
 									#if dataOut[TW]["Ontime"] 	 == 0 				# datestamp
 	
 							# regular datapoint in bin
-							if date  > self.dateLimits[TW][0] and  date <=  self.dateLimits[TW][1]:  ## in date range?
+							try: 	testL = dateTT  > self.dateLimits[TW][2] and  dateTT <=  self.dateLimits[TW][3]
+							except:	continue
+
+							if testL:  ## in date range?
 								if dataOut[TW]["Min"] > value:
 									dataOut[TW]["Min"] 				= value				# min 
 									dataOut[TW]["DateMin"] 			= date				# datestamp
@@ -1356,7 +1373,7 @@ class Plugin(indigo.PluginBase):
 						try:
 							dataOut[TW]["StdDevSimple"] = math.sqrt(stdSimple / len(valuesX[TW]))
 							dataOut[TW]["StdDev"] 		= math.sqrt(stdTWA / max(1.,TWNorm[TW]))
-							#if  TW =="lastDay": self.indiLOG.log(10,"TW:{}  StdDevSimple:{:.5f}, AveSimple:{:.3f}, StdDev:{:.5f}, Ave:{:.3f}, len:{}; Count:{}".format(TW, dataOut[TW]["StdDevSimple"], dataOut[TW]["AveSimple"], dataOut[TW]["StdDev"], dataOut[TW]["Ave"], len(valuesX[TW]), dataOut[TW]["Count"]))# , valuesX[TW] ))
+							if  TW =="lastDay": self.indiLOG.log(10,"TW:{}  StdDevSimple:{:.5f}, AveSimple:{:.3f}, StdDev:{:.5f}, Ave:{:.3f}, len:{}; Count:{}".format(TW, dataOut[TW]["StdDevSimple"], dataOut[TW]["AveSimple"], dataOut[TW]["StdDev"], dataOut[TW]["Ave"], len(valuesX[TW]), dataOut[TW]["Count"]))# , valuesX[TW] ))
 						except	Exception:
 							self.indiLOG.log(10,"error in data: stdSimple: {}, len:{}  stdTWA:{}, TWNorm:{}, skipping ".format(stdSimple, len(valuesX[TW]), stdTWA,  TWNorm[TW]))
 
@@ -1383,7 +1400,7 @@ class Plugin(indigo.PluginBase):
 			if value == "x": 
 				value = 0.
 			else:
-				dataOut.append((value,date))
+				dataOut.append((value, date, (datetime.datetime.strptime(date, self.timeFormatInternal)-self.epoch).total_seconds() ))
 				nValues += 1
 				sum     += value 
 
@@ -1398,21 +1415,21 @@ class Plugin(indigo.PluginBase):
 					if v > ignoreGreater:	continue
 					if v < ignoreLess:		continue
 					value=v
-					dataOut.append((value,date))
+					dataOut.append((value, date, (datetime.datetime.strptime(date, self.timeFormatInternal)-self.epoch).total_seconds() ))
 					continue
 					
 				v = self.getNumber(line[1])
 				if v == "x": continue
 				if v > ignoreGreater:   continue
 				if v < ignoreLess:      continue
-				value=v
-				date=line[0]
-				dataOut.append((value,date))
+				value = v
+				date = line[0]
+				dataOut.append((value, date, (datetime.datetime.strptime(date, self.timeFormatInternal)-self.epoch).total_seconds() ))
 				sum 	+= value
 				nValues +=1
 
 			if len(dataOut) == 0:
-				dataOut=[[0., ""]]
+				dataOut=[[0., "", 0]]
 
 		except	Exception:
 			self.logger.error("", exc_info=True)
