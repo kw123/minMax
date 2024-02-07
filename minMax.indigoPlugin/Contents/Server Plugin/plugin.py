@@ -45,24 +45,25 @@ MB = mesaurement Bin
 
 '''
 
-_timeWindows			= ["thisHour","this12Hours","last12Hours","lastHour","thisDay","thisDay6-18","thisDay18-6","lastDay","last7Days","lastDay6-18","lastDay18-6","thisWeek","lastWeek","thisMonth","lastMonth"] #   ,"weekdays"]
-_MeasBins				= ["Min","DateMin","Max","DateMax","Ave","AveSimple","Count","Count1","UpTime","StdDev","Start","End","Consumption","FirstEntryValue","FirstEntryDate","LastEntryValue","LastEntryDate"]
+_timeWindows			= ["thisHour","lastHour","this12Hours","last12Hours","thisDay","lastDay","thisDay6-18","lastDay6-18","thisDay18-6","lastDay18-6","last7Days","thisWeek","lastWeek","thisMonth","lastMonth"] #   ,"weekdays"]
+_MeasBins				= ["Min","DateMin","Max","DateMax","Ave","StdDev","AveSimple","StdDevSimple","Count","Count1","UpTime","Start","End","Consumption","FirstEntryValue","FirstEntryDate","LastEntryValue","LastEntryDate"]
 _MeasBinsExplanation	= {"Min":				"min value in time bin",
 						   "Max":				"max value in time bin",
 						   "DateMin":			"date-time when min value was in time bin",
 						   "DateMax":			"date-time when max value was in time bin",
 						   "Ave":				"average of values in time bin weighted with time",
+						   "StdDev":			"std devation around average in time bin",
 						   "AveSimple":			"average of values in time bin, simple sum/count",
+						   "StdDevSimple":		"std devation around average in time bin, simple sum/count",
 						   "Count":				"number of values in time bin",
 						   "Count1":			"number of values >0 in time bin ",
 						   "UpTime":			"% time when value was not 0",
-						   "StdDev":			"std devation around average in time bin",
-						   "Start":				"value at start of time bin",
+						   "Start":				"value at start of time bin, might be measured in previous bin",
 						   "End":				"value at end of time bin",
-						   "FirstEntryDate":	"date-time of first value in time bin",
-						   "FirstEntryValue":	"first value in time bin",
-						   "LastEntryDate":		"date-time of last value in time bin",
-						   "LastEntryValue":	"last value in time bin",
+						   "FirstEntryDate":	"date-time of first measured value in time bin",
+						   "FirstEntryValue":	"first measured value in time bin",
+						   "LastEntryDate":		"date-time of last measured value in time bin",
+						   "LastEntryValue":	"last measured value in time bin",
 						   "Consumption":		"end value - start value in time bin"
 						  }
 
@@ -193,8 +194,6 @@ class Plugin(indigo.PluginBase):
 		self.devOrVarExist				= "Var"
 		self.devOrVar					= "Var"
 		self.pluginPrefs["devList"]		= json.dumps(self.devList)
-		self.dateLimits					= [["2015-11-00-00:00:00","2015-12-00-00:00:00",0,0],["2015-12-00-00:00:00","2015-12-12-00:00:00",0,0]]
-		self.firstDate					= "2015-11-00-00:00:00"
 		self.hourLast					= -99 # last hour
 		self.subscribeVariable			= False
 		self.subscribeDevice			= False
@@ -202,6 +201,7 @@ class Plugin(indigo.PluginBase):
 		self.pluginPrefs["postgreHelp2"] = "/Library/PostgreSQL/bin/psql indigo_history postgres "
 		self.pluginPrefs["postgreHelp1"] = "/Applications/Postgres.app/Contents/Versions/latest/bin/psql indigo_history postgres "
 
+		self.doDateLimits()
 
 
 		return
@@ -359,22 +359,25 @@ class Plugin(indigo.PluginBase):
 								outTotal += "\n===> dev: id:{} does not exist, removing".format(devId) 
 								del self.devList[devId]
 
-			self.indiLOG.log(20,outTotal )
-			self.indiLOG.log(20,"config parameters  foldername         >{}<".format(self.variFolderName) )
-			self.indiLOG.log(20,"config parameters  timeFormatDisplay  >{}<".format(self.timeFormatDisplay ) )
-			self.indiLOG.log(20,"config parameters  refreshRate        >{}<[secs]".format( self.refreshRate) )
-			self.indiLOG.log(20,"config parameters  sqlite Or Psql     >{}<".format(self.liteOrPsql ) )
+			self.indiLOG.log(20, outTotal )
+			self.indiLOG.log(20,"config parameters foldername         >{}<".format(self.variFolderName) )
+			self.indiLOG.log(20,"config parameters timeFormatDisplay  >{}<".format(self.timeFormatDisplay ) )
+			self.indiLOG.log(20,"config parameters refreshRate        >{}<[secs]".format( self.refreshRate) )
+			self.indiLOG.log(20,"config parameters scan data starting >{}<".format(self.firstDate) )
+			self.indiLOG.log(20,"config parameters debug areas        >{}<".format(self.debugLevel) )
+
+			self.indiLOG.log(20,"config parameters sqlite Or Psql     >{}<".format(self.liteOrPsql ) )
 			if self.liteOrPsql == "psql":
-				self.indiLOG.log(20,"config parameters  psqlString         >{}<".format(self.liteOrPsqlString) )
-				self.indiLOG.log(20,"config parameters  postgresPassword   >{}<".format(self.postgresPassword ) )
+				self.indiLOG.log(20,"config parameters psqlString         >{}<".format(self.liteOrPsqlString) )
+				self.indiLOG.log(20,"config parameters postgresPassword   >{}<".format(self.postgresPassword ) )
 
 			self.indiLOG.log(20,"" )
-			self.indiLOG.log(20,"time windows:  fromm               to " )
+			self.indiLOG.log(20,"Time windows(bins)  fromm               to:" )
 			#self.indiLOG.log(20, "{}".format( self.dateLimits) )
-			for TW in self.dateLimits:
-				self.indiLOG.log(20, "{:13}  {} {}".format( TW, self.dateLimits[TW][0] , self.dateLimits[TW][1] ) )
+			for TW in _timeWindows:
+				self.indiLOG.log(20, "{:15}     {} {}".format( TW, self.dateLimits[TW][0] , self.dateLimits[TW][1] ) )
 			self.indiLOG.log(20,"" )
-			self.indiLOG.log(20,"explanation of measurments" )
+			self.indiLOG.log(20,"Explanation of measurements" )
 			for binName in _MeasBins:
 				self.indiLOG.log(20, "{:20}  {}".format( binName, _MeasBinsExplanation[binName] ) )
 				
@@ -392,8 +395,8 @@ class Plugin(indigo.PluginBase):
 			for TW in _timeWindows:
 				for mb in _MeasBins:
 					valuesDict[TW+mb]		= False
-			valuesDict["showM"]			= False          
-			valuesDict["ignoreGreater"]	= "+9876543210."
+			valuesDict["showM"]				= False          
+			valuesDict["ignoreGreater"]		= "+9876543210."
 			valuesDict["ignoreLess"]		= "-9876543210."
 			valuesDict["MSG"]   			= ""
 			self.devIDSelectedExist 		= 0
@@ -836,7 +839,6 @@ class Plugin(indigo.PluginBase):
 		self.hourLast				= -99
 		allUpdates					= False
 		self.preSelectDevices()
-		self.doDateLimits()
 		self.printConfigCALLBACK()
 		try:
 			while self.quitNow =="":
@@ -1041,7 +1043,7 @@ class Plugin(indigo.PluginBase):
 			nDay			= dd.timetuple().tm_yday
 			nDay7			= nDay-7
 			self.dateLimits	= {}
-			self.firstDate 	= (dd-datetime.timedelta(dd.day+61,hours=dd.hour)).strftime(self.timeFormatInternal)      # last day of 2 months ago so that we always get 2 months
+			self.firstDate 	= "99999999999999"      # last day of 2 months ago so that we always get 2 months
 			day0	= dd-datetime.timedelta(hours=dd.hour,minutes=dd.minute,seconds=dd.second)
 			day0End	= day0+datetime.timedelta(hours=24)
 			day0EndF= (day0End).strftime(self.timeFormatInternal)
@@ -1129,6 +1131,11 @@ class Plugin(indigo.PluginBase):
 				self.dateLimits[TW][3] = (datetime.datetime.strptime(self.dateLimits[TW][1], self.timeFormatInternal)-self.epoch).total_seconds()
 				self.dateLimits[TW][4] = max(1.,self.dateLimits[TW][3] - self.dateLimits[TW][2])
 
+
+			for TW in self.dateLimits:
+				if self.firstDate > self.dateLimits[TW][0]:
+						self.firstDate = self.dateLimits[TW][0]
+
 			if self.decideMyLog("Loop"): 
 				self.indiLOG.log(10,"first-Date:  {}".format(self.firstDate))
 				self.indiLOG.log(10,"date-limits: {}".format(self.dateLimits))
@@ -1187,13 +1194,16 @@ class Plugin(indigo.PluginBase):
 		dataOut 			= {}
 		dateErrorShown 		= False
 		for TW in self.dateLimits:
-			dataOut[TW] = {"Min": -987654321000.,"Max":987654321000.,"DateMin":"","DateMax":"","Start":-1234567890, "End":-1234567890,"Count":0.,"Count1":0,"StdDev":0,"Ave":0,"AveSimple":0,"UpTime":0,"FirstEntryDate":"","FirstEntryValue":"","LastEntryDate":"","LastEntryValue":""}
-		stdDev = {}
+			dataOut[TW] = {"Min": -987654321000.,"Max":987654321000.,"DateMin":"","DateMax":"","Start":-1234567890, "End":-1234567890,"Count":0.,"Count1":0,"StdDev":0,"StdDevSimple":0,"Ave":0,"AveSimple":0,"UpTime":0,"FirstEntryDate":"","FirstEntryValue":"","LastEntryDate":"","LastEntryValue":""}
+		valuesX = {}
+		normX = {}
+		TWNorm = {}
 		try:
 
 
 			for TW in self.dateLimits:
-				stdDev[TW] = []
+				valuesX[TW] = []
+				normX[TW] = []
 
 			nData = len(dataIn)
 			if nData > 0:
@@ -1236,6 +1246,7 @@ class Plugin(indigo.PluginBase):
 
 						#                                 # of seconds in bin              +90secs    last sec in bin           fist sec in bin  == dont take whole bin otherwise last value is overweighted
 							deltaSecTotal	= min( self.dateLimits[TW][4], min( lastSecInData, self.dateLimits[TW][3]) -self.dateLimits[TW][2] ) 
+							TWNorm[TW] = deltaSecTotal
 
 							norm = 1.0
 
@@ -1267,7 +1278,8 @@ class Plugin(indigo.PluginBase):
 								dataOut[TW]["Ave"]					= value*norm			# time weighted average
 								dataOut[TW]["Count"]				= 1    					# count
 								dataOut[TW]["AveSimple"]			= value					# sum for simple average
-								stdDev[TW].append(value)				# std dev
+								valuesX[TW].append(value)				# std dev
+								normX[TW].append(secondsEffective)				# std dev
 								#if TW =="thisDay": self.indiLOG.log(10,"        0           norm:{:.3f}, av:{:.2f}, test:{}, secondsNextDataPoint:{:.0f}, secondsDataPoint:{:.0f}, ds:{:.0f}?{:.0f},  deltaSecTotal:{:.0f}".format( norm, dataOut[TW]["Ave"],  test, secondsNextDataPoint, secondsDataPoint, secondsEffective, secondsNextDataPoint - secondsDataPoint, deltaSecTotal))
 								if value > 0: 
 									dataOut[TW]["Count1"]			+= 1					# count if > 0
@@ -1296,11 +1308,13 @@ class Plugin(indigo.PluginBase):
 								dataOut[TW]["Ave"]					+= value * norm		# time weighted average
 									
 								dataOut[TW]["AveSimple"]			+= value 			# sum for simple average
-								stdDev[TW].append(value)				# std dev
+								valuesX[TW].append(value)				# std dev
+								normX[TW].append(secondsEffective)				# std dev
 								#if TW =="thisDay": self.indiLOG.log(10,"                    norm:{:.3f}, av:{:.2f}, test:{}, secondsNextDataPoint:{:.0f}, secondsDataPoint:{:.0f}, ds:{:.0f}?{:.0f},  deltaSecTotal:{:.0f}".format( norm, dataOut[TW]["Ave"],  test, secondsNextDataPoint, secondsDataPoint, secondsEffective, secondsNextDataPoint - secondsDataPoint, deltaSecTotal))
+
 								dataOut[TW]["Count"]				+= 1				# count
 								if value > 0: 
-									dataOut[TW]["Count1"] += 1				# count if > 0
+									dataOut[TW]["Count1"]			+= 1				# count if > 0
 								if value != 0:
 									dataOut[TW]["UpTime"]			+= norm			# time weighted average
 
@@ -1329,12 +1343,23 @@ class Plugin(indigo.PluginBase):
 								dateErrorShown = True
 					dataOut[TW]["UpTime"]		= min(1.0, dataOut[TW]["UpTime"]) * 100		# uptime 
 					dataOut[TW]["AveSimple"]	= dataOut[TW]["AveSimple"]/max(1.,dataOut[TW]["Count"])     #  simple average
-					if TW in stdDev and len(stdDev[TW]) > 0:
-						std = 0
-						for x in stdDev[TW]:
-							std += (x - dataOut[TW]["AveSimple"])**2
-						dataOut[TW]["StdDev"] = math.sqrt(std / len(stdDev[TW]))
-						if  TW =="lastMonth": self.indiLOG.log(10,"TW:{}  StdDev:{:.5f}, AveSimple:{:.3f}, len:{}; Count:{}, std dev:{}".format(TW, dataOut[TW]["StdDev"], dataOut[TW]["AveSimple"], len(stdDev[TW]), dataOut[TW]["Count"], stdDev[TW] ))
+
+					# std dev 
+					if TW in valuesX and len(valuesX[TW]) > 1:
+						stdSimple = 0
+						stdTWA = 0
+						for n in range(len(valuesX[TW])):
+							x = valuesX[TW][n]
+							stdSimple += (x - dataOut[TW]["AveSimple"])**2
+							stdTWA	  += normX[TW][n] * (x - dataOut[TW]["Ave"])**2
+							
+						try:
+							dataOut[TW]["StdDevSimple"] = math.sqrt(stdSimple / len(valuesX[TW]))
+							dataOut[TW]["StdDev"] 		= math.sqrt(stdTWA / max(1.,TWNorm[TW]))
+							#if  TW =="lastDay": self.indiLOG.log(10,"TW:{}  StdDevSimple:{:.5f}, AveSimple:{:.3f}, StdDev:{:.5f}, Ave:{:.3f}, len:{}; Count:{}".format(TW, dataOut[TW]["StdDevSimple"], dataOut[TW]["AveSimple"], dataOut[TW]["StdDev"], dataOut[TW]["Ave"], len(valuesX[TW]), dataOut[TW]["Count"]))# , valuesX[TW] ))
+						except	Exception:
+							self.indiLOG.log(10,"error in data: stdSimple: {}, len:{}  stdTWA:{}, TWNorm:{}, skipping ".format(stdSimple, len(valuesX[TW]), stdTWA,  TWNorm[TW]))
+
 		except	Exception:
 			self.logger.error("dataIn: {}".format(dataIn), exc_info=True)
 				
