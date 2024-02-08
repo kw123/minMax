@@ -1,3 +1,14 @@
+changes in V 2022.16.26  @ 2023-02-08
+==================  
+
+1. optimized code, reduced cpu by ~ 90%
+   most of the cpu was used by the sql query (80%)
+   now only once an hour, in between subscription to dev / variable changes
+  
+2. some grammar fixes
+
+
+
 changes in V 2022.15.25  @ 2023-02-07
 ==================  
 
