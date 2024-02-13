@@ -1,3 +1,9 @@
+changes in V 2022.16.27  @ 2023-02-11
+==================  
+
+1. fix error when data is a mix of number and strings, convert all strings to numbers 
+
+
 changes in V 2022.16.26  @ 2023-02-08
 ==================  
 

@@ -783,28 +783,27 @@ class Plugin(indigo.PluginBase):
 		return
 
 
-
-
-
 ####-----------------   ---------
 	def variableUpdated(self, old, new):
 		devId = "{}".format(old.id)
 		if devId not in self.devList: return 
+		if old.value == new.value: return
+
 		nowDD 				= datetime.datetime.now()
 		ddNow 				= nowDD.strftime(self.timeFormatInternal)
 		ttNow 				= round((nowDD-self.epoch).total_seconds(),1)
 
 		state = "value"
-		if old.value == new.value: return
 		nrec = len(self.devList[devId]["states"][state]["data"])
 		if  nrec > 0 and ttNow < self.devList[devId]["states"][state]["data"][-1][2]:
 			self.indiLOG.log(20,"bad old devList for {}-{}, old:{}, new:{}, dt:{}, data stored, last recs:{}".format(old.name,state, old.value, new.value, ttNow - self.devList[devId]["states"][state]["data"][-1][2], self.devList[devId]["states"][state]["data"][-2:] )) 
 			return 
 
-		self.devList[devId]["states"][state]["data"].append((new.value, ddNow, ttNow))
+		self.devList[devId]["states"][state]["data"].append((self.getNumber(new.value), ddNow, ttNow))
 		self.newdata[devId] = True
 		self.newdata[0] = True
-		if self.decideMyLog("AddData"): self.indiLOG.log(10,"new data for {}-{}, old:{}, new:{}, data added:{}".format(old.name,state, old.value, new.value, self.devList[devId]["states"][state]["data"][-min(2,nrec):] )) 
+		if self.decideMyLog("AddData"): self.indiLOG.log(10,"new data for {}-{}, old:{}, new:{}, data added, last 2 recs:{}".format(old.name,state, old.value, new.value, self.devList[devId]["states"][state]["data"][-min(2,nrec):] )) 
+
 		return 
 			
 
@@ -819,15 +818,17 @@ class Plugin(indigo.PluginBase):
 		for state in self.devList[devId]["states"]:
 			if state not in new.states: continue
 			if old.states[state] == new.states[state]: continue
+
 			nrec = len(self.devList[devId]["states"][state]["data"])
 			if  nrec > 0 and ttNow < self.devList[devId]["states"][state]["data"][-1][2]:
 				self.indiLOG.log(20,"bad old devList for {}-{}, old:{}, new:{}, dt:{}, data stored, last recs:{}".format(old.name,state, old.states[state], new.states[state], ttNow - self.devList[devId]["states"][state]["data"][-1][2], self.devList[devId]["states"][state]["data"][-2:] )) 
 				continue
 
-			self.devList[devId]["states"][state]["data"].append((new.states[state], ddNow, ttNow))
+			self.devList[devId]["states"][state]["data"].append((self.getNumber(new.states[state]), ddNow, ttNow))
 			self.newdata[devId] = True
 			self.newdata[0] = True
-			if self.decideMyLog("AddData"): self.indiLOG.log(10,"new data for {}-{}, old:{}, new:{}, data added:{}".format(old.name,state, old.states[state], new.states[state], self.devList[devId]["states"][state]["data"][-min(2,nrec):] )) 
+			if self.decideMyLog("AddData"): self.indiLOG.log(10,"new data for {}-{}, old:{}, new:{}, data added, last 2 recs:{}".format(old.name,state, old.states[state], new.states[state], self.devList[devId]["states"][state]["data"][-min(2,nrec):] )) 
+
 		return 
 
 ####-----------------  do the calculations and sql statements  ---------
@@ -871,11 +872,12 @@ class Plugin(indigo.PluginBase):
 						
 					if self.devList[devId]["states"][state]["data"] == [] or condSQL:
 						dataSQL				= self.doSQL(devId,state,self.devList[devId]["devOrVar"])
-					#self.indiLOG.log(20,"time used for                 sql:{:.2f}".format(time.time()- t0) )
+						if self.decideMyLog("Fill"): self.indiLOG.log(20,"time used for                 sql:{:.2f}".format(time.time()- t0) )
 						self.devList[devId]["states"][state]["data"]	= self.removeDoublesInSQL(dataSQL, params["ignoreLess"], params["ignoreGreater"])
-						#self.indiLOG.log(20,"time used for  removeDoublesInSQL:{:.2f}".format(time.time()- t0) )
-					values								= self.calculate(self.devList[devId]["states"][state]["data"], devName)
-					#self.indiLOG.log(20,"time used for           calculate:{:.2f}".format(time.time()- t0) )
+						if self.decideMyLog("Fill"): self.indiLOG.log(20,"time used for  removeDoublesInSQL:{:.2f}".format(time.time()- t0) )
+
+					values								= self.calculate(self.devList[devId]["states"][state]["data"], devName, params["measures"])
+					if self.decideMyLog("Fill"): self.indiLOG.log(20,"time used for           calculate:{:.2f}".format(time.time()- t0) )
 
 					if self.decideMyLog("Loop"): self.indiLOG.log(10,"variName:{}".format(varName))
 					if self.decideMyLog("Loop"): self.indiLOG.log(10,";   state: {} params: {}".format(state, params) )
@@ -900,16 +902,17 @@ class Plugin(indigo.PluginBase):
 									nchanges += 1
 									indigo.variable.updateValue(varName+TW+"_"+MB,          "%d"%(value[MB]) )
 							elif MB.find("Date")>-1:
-								if indigo.variables[varName+TW+"_"+MB].value != value[MB].strip():
+								if indigo.variables[varName+TW+"_"+MB].value != value[MB]:
 									nchanges += 1
-									indigo.variable.updateValue(varName+TW+"_"+MB,          value[MB].strip())
+									indigo.variable.updateValue(varName+TW+"_"+MB,          value[MB])
 							else:
 								try:	
 									if indigo.variables[varName+TW+"_"+MB].value != params["formatNumbers"]%(value[MB]):
+										nchanges += 1
 										indigo.variable.updateValue(varName+TW+"_"+MB,          params["formatNumbers"]%(value[MB]))
 								except:	
 										indigo.variable.updateValue(varName+TW+"_"+MB,          str(alue[MB]))
-								nchanges += 1
+										nchanges += 1
 								
 			for devId in delList: 
 				del self.devList[devId]
@@ -1079,7 +1082,7 @@ class Plugin(indigo.PluginBase):
 		return dataOut
 		
 ####----------------- calculate ave min max for all  ---------
-	def calculate(self, dataIn, name):     
+	def calculate(self, dataIn, name, measures):     
 		# TW = time window = bin
 		# dataIn[n][Datestamp, value, time stamp]
 		# dateLimits[TW][Startof bin date, endof bin date, start of bin timestamp, end of bin timestamp, secs in bin]
@@ -1099,10 +1102,10 @@ class Plugin(indigo.PluginBase):
 		ttNow 				= (datetime.datetime.now()-self.epoch).total_seconds()
 
 		# init dicts ..
-		for TW in self.dateLimits:
+		for TW in measures:
 			dataOut[TW] = {"Min": +987654321000.,"Max":-987654321000.,"DateMin":"","DateMax":"","Start":-1234567890, "End":-1234567890,"Consumption":0,"Count":0.,"Count1":0,"StdDev":0,"StdDevSimple":0,"Ave":0,"AveSimple":0,"UpTime":0,"FirstEntryDate":"","FirstEntryValue":0,"LastEntryDate":"","LastEntryValue":0}
 
-		for TW in self.dateLimits:
+		for TW in measures:
 			valuesX[TW] = []
 			secondsWeight[TW] = []
 			secTotalInBin[TW] = []
@@ -1143,7 +1146,7 @@ class Plugin(indigo.PluginBase):
 						secondsNextDataPoint	= lastSecInData + addedSecsForLastBin # last measurement point + 90 secs 
 
 					# loop through the timewindows
-					for TW in self.dateLimits:
+					for TW in measures:
 						try:
 							#if TW =="thisHour" and lastData: self.indiLOG.log(10,"{}, 1    secondsNextDataPoint:{:.0f}, secondsDataPoint:{:.0f}, lastSecInData:{:.0f},  ds:{:.0f}- {:.0f}".format(name,  secondsNextDataPoint, secondsDataPoint,lastSecInData,  secondsNextDataPoint - secondsDataPoint, secondsNextDataPoint - self.dateLimits[TW][2]))
 							# skip if not at least one before TW or after timewindow
@@ -1267,7 +1270,7 @@ class Plugin(indigo.PluginBase):
 							continue       
 
 				#finish averages dates etc       
-				for TW in self.dateLimits:
+				for TW in measures:
 					if  dataOut[TW]["DateMin"] !="" and dataOut[TW]["DateMin"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMin"] = self.dateLimits[TW][0]      
 					if  dataOut[TW]["DateMax"] !="" and dataOut[TW]["DateMax"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMax"] = self.dateLimits[TW][0]
 					if self.timeFormatInternal != self.timeFormatDisplay:
