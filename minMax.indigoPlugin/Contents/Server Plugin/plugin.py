@@ -44,7 +44,7 @@ MB = mesaurement Bin
 '''
 
 _timeWindows			= ["thisHour","lastHour","this12Hours","last12Hours","thisDay","lastDay","thisDay6-18","lastDay6-18","thisDay18-6","lastDay18-6","last7Days","thisWeek","lastWeek","thisMonth","lastMonth"] #   ,"weekdays"]
-_MeasBins				= ["Min","DateMin","Max","DateMax","Ave","StdDev","AveSimple","StdDevSimple","Count","Count1","UpTime","Start","End","Consumption","FirstEntryValue","FirstEntryDate","LastEntryValue","LastEntryDate"]
+_MeasBins				= ["Min","DateMin","Max","DateMax","Ave","StdDev","AveSimple","StdDevSimple","Count","Count1","UpTime","Start","End","Consumption","Trend","FirstEntryValue","FirstEntryDate","LastEntryValue","LastEntryDate"]
 _MeasBinsExplanation	= {"Min":				"min value in time window / bin ",
 						   "Max":				"max value in time window / bin ",
 						   "DateMin":			"date-time when min value was in time window / bin ",
@@ -62,7 +62,8 @@ _MeasBinsExplanation	= {"Min":				"min value in time window / bin ",
 						   "FirstEntryValue":	"first measured value in time window / bin ",
 						   "LastEntryDate":		"date-time of last measured value in time window / bin ",
 						   "LastEntryValue":	"last measured value in time window / bin ",
-						   "Consumption":		"end value - start value in time window / bin "
+						   "Consumption":		"end value - start value (trend) in time window / bin ",
+						   "Trend":				"change% = (end value - start value) / (end value + start value) *200; trend = ^^^^^^^, ... ,^,=,v,...,vvvvvvv: if change% > +64x,32x,16x,8x,4x,2x,x, = , < x,2x,4x,8x,16x,32x,64x, x = 1%)"
 						  }
 
 
@@ -911,7 +912,7 @@ class Plugin(indigo.PluginBase):
 										nchanges += 1
 										indigo.variable.updateValue(varName+TW+"_"+MB,          params["formatNumbers"]%(value[MB]))
 								except:	
-										indigo.variable.updateValue(varName+TW+"_"+MB,          str(alue[MB]))
+										indigo.variable.updateValue(varName+TW+"_"+MB,          str(value[MB]))
 										nchanges += 1
 								
 			for devId in delList: 
@@ -1209,10 +1210,27 @@ class Plugin(indigo.PluginBase):
 								dataOut[TW]["Start"] 				= value 				# Start value
 								dataOut[TW]["End"] 					= value 				# 
 								dataOut[TW]["Min"] 					= value 				# min
-								dataOut[TW]["DateMin"] 				= dateDataPoint  				# datestamp
+								dataOut[TW]["DateMin"] 				= dateDataPoint  		# datestamp
 								dataOut[TW]["Max"] 					= value 				# max 
-								dataOut[TW]["DateMax"] 				= dateDataPoint  				# datestamp
+								dataOut[TW]["DateMax"] 				= dateDataPoint  		# datestamp
 								dataOut[TW]["Consumption"]			= dataOut[TW]["End"] - dataOut[TW]["Start"] 	
+								Trend								= (dataOut[TW]["Consumption"])/max(0.001,dataOut[TW]["End"] + dataOut[TW]["Start"] ) *200	
+								x = 1 #%
+								if   Trend >= 64*x: 				dataOut[TW]["Trend"] = "^^^^^^^"
+								elif Trend >= 32*x: 				dataOut[TW]["Trend"] = "^^^^^^"
+								elif Trend >= 16*x: 				dataOut[TW]["Trend"] = "^^^^^"
+								elif Trend >= 8*x: 					dataOut[TW]["Trend"] = "^^^^"
+								elif Trend >= 4*x: 					dataOut[TW]["Trend"] = "^^^"
+								elif Trend >= 2*x: 					dataOut[TW]["Trend"] = "^^"
+								elif Trend >= 1*x: 					dataOut[TW]["Trend"] = "^"
+								elif Trend <= 64*x: 				dataOut[TW]["Trend"] = "vvvvvvv"
+								elif Trend <= 32*x: 				dataOut[TW]["Trend"] = "vvvvvv"
+								elif Trend <= 16*x: 				dataOut[TW]["Trend"] = "vvvvv"
+								elif Trend <= 8*x: 					dataOut[TW]["Trend"] = "vvvv"
+								elif Trend <= 4*x: 					dataOut[TW]["Trend"] = "vvv"
+								elif Trend <= 2*x: 					dataOut[TW]["Trend"] = "vv"
+								elif Trend <= 1*x: 					dataOut[TW]["Trend"] = "v"
+								else:								dataOut[TW]["Trend"] = "="
 
 								secondsWeight[TW].append(secondsEffective)				# std dev
 								norm 								= secondsEffective/secTotalInBin[TW]  
@@ -1237,16 +1255,16 @@ class Plugin(indigo.PluginBase):
 
 								if dataOut[TW]["Min"] > value:
 									dataOut[TW]["Min"] 				= value				# min 
-									dataOut[TW]["DateMin"] 			= dateDataPoint				# datestamp
+									dataOut[TW]["DateMin"] 			= dateDataPoint		# datestamp
 								if dataOut[TW]["Max"] < value:
 									dataOut[TW]["Max"] 				= value				# max  
-									dataOut[TW]["DateMax"]			= dateDataPoint				# datestamp
+									dataOut[TW]["DateMax"]			= dateDataPoint		# datestamp
 
-								dataOut[TW]["LastEntryDate"] 	= dateDataPoint 				#
-								dataOut[TW]["LastEntryValue"]	= value 			# 
+								dataOut[TW]["LastEntryDate"] 	= dateDataPoint 		#
+								dataOut[TW]["LastEntryValue"]	= value 				# 
 
 	
-								dataOut[TW]["End"] 					= value 				# min
+								dataOut[TW]["End"] 					= value 			# min
 
 								secondsWeight[TW].append(secondsEffective)				# std dev
 								norm 								= secondsEffective/secTotalInBin[TW] 
@@ -1259,11 +1277,28 @@ class Plugin(indigo.PluginBase):
 								if value > 0: 
 									dataOut[TW]["Count1"]			+= 1				# count if > 0
 								if value != 0:
-									dataOut[TW]["UpTime"]			+= norm			# time weighted average
+									dataOut[TW]["UpTime"]			+= norm				# time weighted average
 
 
 
 							dataOut[TW]["Consumption"]				= dataOut[TW]["End"] - dataOut[TW]["Start"] 	
+							Trend								= (dataOut[TW]["Consumption"])/max(0.001,dataOut[TW]["End"] + dataOut[TW]["Start"] ) *200	
+							x = 1 #%
+							if   Trend >= 64*x: 				dataOut[TW]["Trend"] = "^^^^^^^"
+							elif Trend >= 32*x: 				dataOut[TW]["Trend"] = "^^^^^^"
+							elif Trend >= 16*x: 				dataOut[TW]["Trend"] = "^^^^^"
+							elif Trend >= 8*x: 					dataOut[TW]["Trend"] = "^^^^"
+							elif Trend >= 4*x: 					dataOut[TW]["Trend"] = "^^^"
+							elif Trend >= 2*x: 					dataOut[TW]["Trend"] = "^^"
+							elif Trend >= 1*x: 					dataOut[TW]["Trend"] = "^"
+							elif Trend <= 64*x: 				dataOut[TW]["Trend"] = "vvvvvvv"
+							elif Trend <= 32*x: 				dataOut[TW]["Trend"] = "vvvvvv"
+							elif Trend <= 16*x: 				dataOut[TW]["Trend"] = "vvvvv"
+							elif Trend <= 8*x: 					dataOut[TW]["Trend"] = "vvvv"
+							elif Trend <= 4*x: 					dataOut[TW]["Trend"] = "vvv"
+							elif Trend <= 2*x: 					dataOut[TW]["Trend"] = "vv"
+							elif Trend <= 1*x: 					dataOut[TW]["Trend"] = "v"
+							else:								dataOut[TW]["Trend"] = "="
 							
 						except	Exception:
 							self.logger.error("in  data line: {}  error ".format(dataIn[nn]), exc_info=True)
