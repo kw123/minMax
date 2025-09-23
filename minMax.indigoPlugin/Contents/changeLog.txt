@@ -1,3 +1,16 @@
+changes in V 2022.18.28 @ 2025-09-15
+==================  
+1. trend values: added  option to change variable values fro vvvvvvv ... ^^^^^^^^ to vvv4vvv vv4vvv ... v ..= .. ^ .. ^^^4^^^
+    trend settings can now be done for each dev/state individually
+2. several menu fixes 
+  
+
+
+changes in V 2022.17.28 @ 2025-09-15
+==================  
+1. fixed version number determination, did not work for beta version (0b1 is not an integer)
+  
+
 changes in V 2022.17.27  @ 2025--4-21
 ==================  
 1. added measurement:

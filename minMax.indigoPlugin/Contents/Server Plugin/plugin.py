@@ -63,8 +63,33 @@ _MeasBinsExplanation	= {"Min":				"min value in time window / bin ",
 						   "LastEntryDate":		"date-time of last measured value in time window / bin ",
 						   "LastEntryValue":	"last measured value in time window / bin ",
 						   "Consumption":		"end value - start value (trend) in time window / bin ",
-						   "Trend":				"change% = (end value - start value) / (end value + start value) *200; trend = ^^^^^^^, ... ,^,=,v,...,vvvvvvv: if change% > +64x,32x,16x,8x,4x,2x,x, = , < x,2x,4x,8x,16x,32x,64x, x = 1%)"
+						   "Trend":				"change% = (end value - start value) / (end value + start value) *200; trend = ^^^4^^^, ... ,^,=,v,...,vvv4vvv: if change% > +64x,32x,...,2x,1x, = , < 1x,2x,...,32x,64x, x = Trend Delta Percent Base)"
 						  }
+kDefaultPluginPrefs = {
+				"timeFormatDisplay":		"%Y-%m-%d-%H:%M:%S",
+				"timeFormatDisplay2":		"%Y-%m-%d %H:%M:%S = 2018-01-24 18:33:05",
+				"timeFormatDisplay3":		"%a = weekdayS",
+				"timeFormatDisplay4":		"%I%p = 12am",
+				"timeFormatDisplay5":		"%y = 2 digit year",
+				"timeFormatDisplay6":		"% b short local month",
+				"timeFormatDisplay7":		"docs.python.org/2/library/datetime.html",
+				"TrendDeltaPercent":		"1.0",
+				"TrendDeltaDisplay":		"4",
+				"liteOrPsql":				"psql",
+				"liteOrPsqlString":			"/Applications/Postgres.app/Contents/Versions/latest/bin/psql indigo_history postgres",
+				"postgreHelp1":				"/Applications/Postgres.app/Contents/Versions/latest/bin/psql indigo_history postgres",
+				"postgreHelp2":				"/Library/PostgreSQL/bin/psql indigo_history postgres",
+				"postgresUserId":			"postgres",
+				"showLoginTest":			False,
+				"debugLoop":				False,
+				"debugSql":					False,
+				"debugSetup":				False,
+				"debugAddData":				False,
+				"debugFill":				False,
+				"debugSpecial":				False,
+				"debugall":					False
+}
+
 
 
 _debugAreas				= ["Loop","Sql","Setup","AddData","Fill","Special","all"]
@@ -84,15 +109,14 @@ class Plugin(indigo.PluginBase):
 		self.indigoRootPath 			= indigo.server.getInstallFolderPath().split("Indigo")[0]
 		self.pathToPlugin 				= self.completePath(os.getcwd())
 
-		major, minor, release 			= map(int, indigo.server.version.split("."))
-		self.indigoVersion				= major
+		major, minor, release 			= indigo.server.version.split(".")
+		self.indigoVersion				= int(major)
 		self.pluginVersion				= pluginVersion
 		self.pluginId					= pluginId
 		self.pluginName					= pluginId.split(".")[-1]
 		self.myPID						= os.getpid()
 		self.pluginState				= "init"
 
-		self.myPID 						= os.getpid()
 		self.MACuserName				= pwd.getpwuid(os.getuid())[0]
 
 		self.MAChome					= os.path.expanduser("~")
@@ -102,7 +126,7 @@ class Plugin(indigo.PluginBase):
 		self.PluginLogFile				= indigo.server.getLogsFolderPath(pluginId=self.pluginId) +"/plugin.log"
 
 
-		formats=	{   logging.THREADDEBUG: "%(asctime)s %(msg)s",
+		formats =	{   logging.THREADDEBUG: "%(asctime)s %(msg)s",
 						logging.DEBUG:       "%(asctime)s %(msg)s",
 						logging.INFO:        "%(asctime)s %(msg)s",
 						logging.WARNING:     "%(asctime)s %(msg)s",
@@ -178,7 +202,7 @@ class Plugin(indigo.PluginBase):
 		if self.postgresPassword != "" and self.liteOrPsql.find("psql") >-1: 
 			self.postgresPasscode 		= "PGPASSWORD="+self.postgresPassword +" "
 		else: self.postgresPasscode 	= ""
-		self.timeFormatDisplay  		= self.pluginPrefs.get(     "timeFormatDisplay", self.timeFormatInternal)
+		self.timeFormatDisplay  		= self.pluginPrefs.get(  "timeFormatDisplay", self.timeFormatInternal)
 		self.newdata = {0:False}
 		self.devList            		= json.loads(self.pluginPrefs.get("devList","{}"))
 		self.lastDevSave				= 0
@@ -197,7 +221,44 @@ class Plugin(indigo.PluginBase):
 		self.saveDevList()
 		self.subscribeVariable			= False
 		self.subscribeDevice			= False
+		self.TrendDeltaPercentDefault	= float(self.pluginPrefs.get( "TrendDeltaPercent", 1.0) )
+		self.TrendDeltaDisplayDefault	= self.pluginPrefs.get( "TrendDeltaDisplay", "4") 
+		 
+		self.TrendDeltaDisplay = {"^":["","","","","","","","","","","","","","","","","",""], "4":["","","","","","","","","","","","","","","","","",""]}
+		self.TrendDeltaDisplay["^"][0]  = 7*"^"
+		self.TrendDeltaDisplay["^"][1]  = 6*"^"
+		self.TrendDeltaDisplay["^"][2]  = 5*"^"
+		self.TrendDeltaDisplay["^"][3]  = 4*"^"
+		self.TrendDeltaDisplay["^"][4]  = 3*"^"
+		self.TrendDeltaDisplay["^"][5]  = 2*"^"
+		self.TrendDeltaDisplay["^"][6]  = 1*"^"
+		self.TrendDeltaDisplay["^"][7]  =   "="
+		self.TrendDeltaDisplay["^"][8]  = 1*"v"
+		self.TrendDeltaDisplay["^"][9]  = 2*"v"
+		self.TrendDeltaDisplay["^"][10] = 3*"v"
+		self.TrendDeltaDisplay["^"][11] = 4*"v"
+		self.TrendDeltaDisplay["^"][12] = 5*"v"
+		self.TrendDeltaDisplay["^"][13] = 6*"v"
+		self.TrendDeltaDisplay["^"][14] = 7*"v"
 
+		self.TrendDeltaDisplay["4"][0]  = "^^^4^^^"
+		self.TrendDeltaDisplay["4"][1]  = "^^^4^^"
+		self.TrendDeltaDisplay["4"][2]  = "^^^4^"
+		self.TrendDeltaDisplay["4"][3]  = "^^^4"
+		self.TrendDeltaDisplay["4"][4]  = 3*"^"
+		self.TrendDeltaDisplay["4"][5]  = 2*"^"
+		self.TrendDeltaDisplay["4"][6]  = 1*"^"
+		self.TrendDeltaDisplay["4"][7]  =   "="
+		self.TrendDeltaDisplay["4"][8]  = 1*"v"
+		self.TrendDeltaDisplay["4"][9]  = 2*"v"
+		self.TrendDeltaDisplay["4"][10] = 3*"v"
+		self.TrendDeltaDisplay["4"][11] = "vvv4"
+		self.TrendDeltaDisplay["4"][12] = "vvv4v"
+		self.TrendDeltaDisplay["4"][13] = "vvv4vv"
+		self.TrendDeltaDisplay["4"][14] = "vvv4vvv"
+
+		
+		
 		self.pluginPrefs["postgreHelp2"] = "/Library/PostgreSQL/bin/psql indigo_history postgres "
 		self.pluginPrefs["postgreHelp1"] = "/Applications/Postgres.app/Contents/Versions/latest/bin/psql indigo_history postgres "
 
@@ -210,7 +271,7 @@ class Plugin(indigo.PluginBase):
 	####-----------------    ---------
 	def cleandevList(self):
 		try:
-			delID=[]
+			delID = []
 			for devId in self.devList:
 				if "devOrVar" not in self.devList[devId]:
 					self.indiLOG.log(30,"deleting var-id:{}  from tracking, devOrVar not in list  ".format(devId) )
@@ -246,14 +307,20 @@ class Plugin(indigo.PluginBase):
 					if "shortName" not in self.devList[devId]["states"][state]:
 							self.devList[devId]["states"][state]["shortName"] 			= ""
 					if "data" not in self.devList[devId]["states"][state]:
-							self.devList[devId]["states"][state]["data"] 			= []
-					delTW =[]
+							self.devList[devId]["states"][state]["data"] 				= []
+					if "TrendDeltaPercent" not in self.devList[devId]["states"][state]:
+							self.devList[devId]["states"][state]["TrendDeltaPercent"] 	= self.TrendDeltaPercentDefault
+					if "TrendDeltaDisplay" not in self.devList[devId]["states"][state]:
+							self.devList[devId]["states"][state]["TrendDeltaDisplay"] 	= self.TrendDeltaDisplayDefault
+
+
+					delTW = []
 					for TW in self.devList[devId]["states"][state]["measures"]:
 						if TW not in _timeWindows:
 							self.indiLOG.log(30,"deleting dev-id:{}/state:{}   from tracking >>TW<< not in list".format(devId, state) )
 							delTW.append(TW)
 						else:
-							delMes =[]
+							delMes = []
 							for MB in self.devList[devId]["states"][state]["measures"][TW]:
 								if MB not in _MeasBins:
 									self.indiLOG.log(30,"deleting dev-id:{}/state:{}  from tracking >>MB<< not in list".format(devId, state) )
@@ -283,33 +350,6 @@ class Plugin(indigo.PluginBase):
 
 
  
-####-----------------  set the geneeral config parameters---------
-	def validatePrefsConfigUi(self, valuesDict):
-
-		self.debugLevel = []
-		for d in _debugAreas:
-			if valuesDict["debug"+d]: self.debugLevel.append(d)
-
-		self.variFolderName     = valuesDict["variFolderName"]
-		self.refreshRate        = float(valuesDict["refreshRate"])
-		self.liteOrPsql         = valuesDict["liteOrPsql"]
-		self.liteOrPsqlString   = valuesDict["liteOrPsqlString"]
-		self.postgresPassword	= valuesDict["postgresPassword"]
-		if self.postgresPassword != "" and self.liteOrPsql.find("psql") >-1: 
-			self.postgresPasscode 		= "PGPASSWORD="+self.postgresPassword +" "
-		else: self.postgresPasscode 	= ""
-		self.timeFormatDisplay  = valuesDict["timeFormatDisplay"]
-
-		try:
-			indigo.variables.folder.create(self.variFolderName)
-		except:
-			pass
-
-		self.doSQLNow	= True
-		
-		self.printConfigCALLBACK()
-		return True, valuesDict
-
 
 
 
@@ -324,7 +364,7 @@ class Plugin(indigo.PluginBase):
 			outTotal = "Configuration: "
 			#         12345678901234567890123456789012345 12345678901212345678901234567 123456789012312345678901234
 			header = "Short_Name      Dev/Var-Name-----------------------------   ID         State                  ignoreLess ignoreGreater    format  "
-			outTotal += "\n"+header+" tracking     measures: -------"
+			outTotal += "\n"+header+" tracking    measures: ------------"
 			for devId in copy.deepcopy(self.devList):
 				if devId == printDevId or printDevId == "":
 					
@@ -372,6 +412,8 @@ class Plugin(indigo.PluginBase):
 			if self.liteOrPsql == "psql":
 				self.indiLOG.log(20,"config parameters psqlString         >{}<".format(self.liteOrPsqlString) )
 				self.indiLOG.log(20,"config parameters postgresPassword   >{}<".format(self.postgresPassword ) )
+			self.indiLOG.log(20,    "Trend Delta Percent Base Default:    >{:.1f}%< ".format(self.TrendDeltaPercentDefault) )
+			self.indiLOG.log(20,    "Trend Delta display:                 >{:}< ".format(self.TrendDeltaDisplayDefault) )
 
 			self.indiLOG.log(20,"" )
 			self.indiLOG.log(20,"Time windows(bins)  fromm               to:" )
@@ -382,6 +424,7 @@ class Plugin(indigo.PluginBase):
 			self.indiLOG.log(20,"Explanation of measurements" )
 			for binName in _MeasBins:
 				self.indiLOG.log(20, "{:20}  {}".format( binName, _MeasBinsExplanation[binName] ) )
+			self.indiLOG.log(20,"" )
 				
 		except	Exception:
 			self.logger.error("", exc_info=True)
@@ -489,11 +532,11 @@ class Plugin(indigo.PluginBase):
 ####-----------------   ---------
 	def pickDeviceCALLBACK(self,valuesDict="",typeId=""):               # Select only device/properties that are supported
 		if self.decideMyLog("Setup"): self.indiLOG.log(10,str(valuesDict))
-		if valuesDict["device"].find("-V") >-1:
+		if valuesDict["device"].find("-V") > -1:
 			self.devOrVar = "Var"
-			self.devIDSelected= int(valuesDict["device"][:-2])# drop -V
+			self.devIDSelected = int(valuesDict["device"][:-2])# drop -V
 		else:        
-			self.devIDSelected= int(valuesDict["device"])
+			self.devIDSelected = int(valuesDict["device"])
 			self.devOrVar = "Dev"
 
 
@@ -514,14 +557,14 @@ class Plugin(indigo.PluginBase):
 ####-----------------   ---------
 	def filterStatesThatQualify(self,filter="",valuesDict="",typeId=""):                
 	
-		if self.devIDSelected == 0: return [(0,0)]
+		if self.devIDSelected == 0: return [(0,"select device")]
 
-		retList=[]
+		retList = []
 		if self.devOrVar == "Var":
 			retList.append(( "value", "value"))
 			return retList
 		
-		dev=indigo.devices[self.devIDSelected]
+		dev = indigo.devices[self.devIDSelected]
 		retList = []
 		theStates = dev.states.keys()
 		for test in theStates:
@@ -567,7 +610,7 @@ class Plugin(indigo.PluginBase):
 			self.devList[devId]["states"]={}
 
 			
-		self.devList[devId]["devOrVar"]=self.devOrVar
+		self.devList[devId]["devOrVar"] = self.devOrVar
 
 		if  "states" not in self.devList[devId]:
 			self.devList[devId]["states"]={}
@@ -576,13 +619,15 @@ class Plugin(indigo.PluginBase):
 		if  state not in self.devList[devId]["states"]:
 			self.devList[devId]["states"][state] = {}
 
-		if  "measures" not in self.devList[devId]["states"][state]:
-			self.devList[devId]["states"][state]["measures"]		= {}
-			self.devList[devId]["states"][state]["ignoreLess"]		= -9876543210.
-			self.devList[devId]["states"][state]["ignoreGreater"]	= +9876543210.
-			self.devList[devId]["states"][state]["formatNumbers"]	= "%.1f"
-			self.devList[devId]["states"][state]["shortName"]		= ""
-			self.devList[devId]["states"][state]["data"]			= []
+		if  "TrendDeltaDisplay" not in self.devList[devId]["states"][state]:
+			self.devList[devId]["states"][state]["measures"]			= {}
+			self.devList[devId]["states"][state]["ignoreLess"]			= -9876543210.
+			self.devList[devId]["states"][state]["ignoreGreater"]		= +9876543210.
+			self.devList[devId]["states"][state]["formatNumbers"]		= "%.1f"
+			self.devList[devId]["states"][state]["shortName"]			= ""
+			self.devList[devId]["states"][state]["data"]				= []
+			self.devList[devId]["states"][state]["TrendDeltaPercent"] 	= self.TrendDeltaPercentDefault
+			self.devList[devId]["states"][state]["TrendDeltaDisplay"] 	= self.TrendDeltaDisplayDefault
 			
 		for TW in _timeWindows:
 			if TW not in self.devList[devId]["states"][state]["measures"]:
@@ -603,8 +648,10 @@ class Plugin(indigo.PluginBase):
 
 		valuesDict["ignoreLess"]		= "{}".format(self.devList[devId]["states"][state]["ignoreLess"])
 		valuesDict["ignoreGreater"]		= "{}".format(self.devList[devId]["states"][state]["ignoreGreater"])
-		valuesDict["formatNumbers"] 	=  self.devList[devId]["states"][state]["formatNumbers"]
-		valuesDict["shortName"] 		=  self.devList[devId]["states"][state]["shortName"]
+		valuesDict["formatNumbers"] 	= self.devList[devId]["states"][state]["formatNumbers"]
+		valuesDict["shortName"] 		= self.devList[devId]["states"][state]["shortName"]
+		valuesDict["TrendDeltaPercent"]	= self.devList[devId]["states"][state]["TrendDeltaPercent"]
+		valuesDict["TrendDeltaDisplay"] = self.devList[devId]["states"][state]["TrendDeltaDisplay"]
 		valuesDict["showM"]				= True 
        
 		return valuesDict                        
@@ -623,9 +670,9 @@ class Plugin(indigo.PluginBase):
 
 			
 			if self.devOrVar == "Var":
-				dev=indigo.variables[int(self.devIDSelected)]
+				dev = indigo.variables[int(self.devIDSelected)]
 			else:
-				dev=indigo.devices[int(self.devIDSelected)]
+				dev = indigo.devices[int(self.devIDSelected)]
 
 
 			if devId not in self.devList:
@@ -641,18 +688,20 @@ class Plugin(indigo.PluginBase):
 
 			
 			if "states" not in self.devList[devId]:
-				self.devList[devId]["states"] ={}
+				self.devList[devId]["states"] = {}
 				
 			if state not in self.devList[devId]["states"]:
-				self.devList[devId]["states"][state] ={}
+				self.devList[devId]["states"][state] = {}
 
-			if "measures" not in self.devList[devId]["states"][state]:
-				self.devList[devId]["states"][state]["measures"]		= {}
-				self.devList[devId]["states"][state]["ignoreLess"]		= -9876543210.
-				self.devList[devId]["states"][state]["ignoreGreater"]	= +9876543210.
-				self.devList[devId]["states"][state]["formatNumbers"]	= "%.1f"
-				self.devList[devId]["states"][state]["shortName"]		= ""
-				self.devList[devId]["states"][state]["data"]			= []
+			if "TrendDeltaDisplay" not in self.devList[devId]["states"][state]:
+				self.devList[devId]["states"][state]["measures"]			= {}
+				self.devList[devId]["states"][state]["ignoreLess"]			= -9876543210.
+				self.devList[devId]["states"][state]["ignoreGreater"]		= +9876543210.
+				self.devList[devId]["states"][state]["formatNumbers"]		= "%.1f"
+				self.devList[devId]["states"][state]["shortName"]			= ""
+				self.devList[devId]["states"][state]["data"]				= []
+				self.devList[devId]["states"][state]["TrendDeltaPercent"] 	= self.TrendDeltaPercentDefault
+				self.devList[devId]["states"][state]["TrendDeltaDisplay"] 	= self.TrendDeltaDisplayDefault
 
 				
 			for TW in  _timeWindows:
@@ -663,6 +712,9 @@ class Plugin(indigo.PluginBase):
 						anyOne = True
 					else:    
 						self.devList[devId]["states"][state]["measures"][TW][MB]=False
+
+			self.devList[devId]["states"][state]["TrendDeltaPercent"]  = float(valuesDict["TrendDeltaPercent"])
+			self.devList[devId]["states"][state]["TrendDeltaDisplay"] = valuesDict["TrendDeltaDisplay"] 
 
 
 			try: 	self.devList[devId]["states"][state]["ignoreLess"]		= float(valuesDict["ignoreLess"])
@@ -678,7 +730,7 @@ class Plugin(indigo.PluginBase):
 
 			self.saveNow 		= True
 			self.doSQLNow		= True
-			self.devIDSelected	= 0
+			#self.devIDSelected	= 0
 			self.actionList 	+= "preSelectDevices"
 
 			self.printConfigCALLBACK(printDevId=devId)
@@ -702,6 +754,14 @@ class Plugin(indigo.PluginBase):
 		return
 
 
+
+####-----------------  set the geneeral config parameters---------
+	def validatePrefsConfigUi(self, valuesDict):
+
+		self.quitNow = " config change"
+		return True, valuesDict
+
+
 ####-----------------   main loop          ---------
 	def runConcurrentThread(self):
 
@@ -710,12 +770,18 @@ class Plugin(indigo.PluginBase):
 		self.saveDevList()
 
 
-		if self.quitNow !="":
+		if self.quitNow != "":
 			indigo.server.log( "runConcurrentThread stopping plugin due to:  ::::: {} :::::".format(self.quitNow))
 
-		self.quitNow =""
+		self.quitNow = ""
+	
+		indigo.server.savePluginPrefs() 
+		self.sleep(0.2)
 
-		exit()
+		indigo.server.getPlugin(self.pluginId).restart(waitUntilDone=False)
+		
+		time.sleep(0.5)
+		return 
 
 ####-----------------   main loop            ---------
 	def dorunConcurrentThread(self): 
@@ -729,7 +795,7 @@ class Plugin(indigo.PluginBase):
 		self.preSelectDevices()
 		self.printConfigCALLBACK()
 		try:
-			while self.quitNow =="":
+			while self.quitNow == "":
 
 				nowTT	= time.time()
 				condTime	= nowTT- lastUpdate > refreshRate
@@ -870,14 +936,15 @@ class Plugin(indigo.PluginBase):
 						varName	= params["shortName"]
 					else:
 						varName	= devName.replace(" ","_")+"__"+state.replace(" ","_")+"__"
+					
 						
 					if self.devList[devId]["states"][state]["data"] == [] or condSQL:
-						dataSQL				= self.doSQL(devId,state,self.devList[devId]["devOrVar"])
+						dataSQL	= self.doSQL(devId,state,self.devList[devId]["devOrVar"])
 						if self.decideMyLog("Fill"): self.indiLOG.log(20,"time used for                 sql:{:.2f}".format(time.time()- t0) )
 						self.devList[devId]["states"][state]["data"]	= self.removeDoublesInSQL(dataSQL, params["ignoreLess"], params["ignoreGreater"])
 						if self.decideMyLog("Fill"): self.indiLOG.log(20,"time used for  removeDoublesInSQL:{:.2f}".format(time.time()- t0) )
 
-					values								= self.calculate(self.devList[devId]["states"][state]["data"], devName, params["measures"])
+					values		= self.calculate(self.devList[devId]["states"][state]["data"], devName, params["measures"], self.devList[devId]["states"][state].get("TrendDeltaPercent", self.TrendDeltaPercentDefault), self.devList[devId]["states"][state].get("TrendDeltaDisplay", self.TrendDeltaDisplayDefault))
 					if self.decideMyLog("Fill"): self.indiLOG.log(20,"time used for           calculate:{:.2f}".format(time.time()- t0) )
 
 					if self.decideMyLog("Loop"): self.indiLOG.log(10,"variName:{}".format(varName))
@@ -898,28 +965,38 @@ class Plugin(indigo.PluginBase):
 								try:	indigo.variable.create(varName+TW+"_"+MB,      "", self.variFolderName)
 								except:	pass
 
-							if  MB.find("Count")>-1:
+							if  MB.find("Count") > -1:
 								if indigo.variables[varName+TW+"_"+MB].value != "%d"%(value[MB]):
 									nchanges += 1
 									indigo.variable.updateValue(varName+TW+"_"+MB,          "%d"%(value[MB]) )
-							elif MB.find("Date")>-1:
+							elif MB.find("Date") > -1:
 								if indigo.variables[varName+TW+"_"+MB].value != value[MB]:
 									nchanges += 1
 									indigo.variable.updateValue(varName+TW+"_"+MB,          value[MB])
+							elif MB.find("Trend") > -1:
+								if indigo.variables[varName+TW+"_"+MB].value != value.get("Trend","="):
+									nchanges += 1
+									indigo.variable.updateValue(varName+TW+"_"+MB,          value.get("Trend","="))
 							else:
 								try:	
 									if indigo.variables[varName+TW+"_"+MB].value != params["formatNumbers"]%(value[MB]):
 										nchanges += 1
 										indigo.variable.updateValue(varName+TW+"_"+MB,          params["formatNumbers"]%(value[MB]))
 								except:	
+									try:
 										indigo.variable.updateValue(varName+TW+"_"+MB,          str(value[MB]))
 										nchanges += 1
-								
+									except:
+										self.indiLOG.log(20,"error for state:{:}, varName:{:}, TW:{:}, MB:{:}, value:{:}".format(state, varName, TW, MB, value) )
+
+
 			for devId in delList: 
 				del self.devList[devId]
+				
 			if len(delList) > 0:
 				self.saveDevList()
-			if self.decideMyLog("Fill"): self.indiLOG.log(10,"filling Variables  #of changes:{}  total:{:.2f}[secs], doSQL:{}".format(nchanges,  time.time()- t0,  condSQL) )
+				
+			if self.decideMyLog("Fill"): self.indiLOG.log(10,"filling Variables  #of changes:{}  total:{:.2f}[secs], doSQL:{}".format(nchanges,  time.time() - t0,  condSQL) )
 			return True
 		except	Exception:
 			self.logger.error("", exc_info=True)
@@ -1083,7 +1160,7 @@ class Plugin(indigo.PluginBase):
 		return dataOut
 		
 ####----------------- calculate ave min max for all  ---------
-	def calculate(self, dataIn, name, measures):     
+	def calculate(self, dataIn, name, measures, trendDeltaPercent, stdOr4):     
 		# TW = time window = bin
 		# dataIn[n][Datestamp, value, time stamp]
 		# dateLimits[TW][Startof bin date, endof bin date, start of bin timestamp, end of bin timestamp, secs in bin]
@@ -1214,23 +1291,7 @@ class Plugin(indigo.PluginBase):
 								dataOut[TW]["Max"] 					= value 				# max 
 								dataOut[TW]["DateMax"] 				= dateDataPoint  		# datestamp
 								dataOut[TW]["Consumption"]			= dataOut[TW]["End"] - dataOut[TW]["Start"] 	
-								Trend								= (dataOut[TW]["Consumption"])/max(0.001,dataOut[TW]["End"] + dataOut[TW]["Start"] ) *200	
-								x = 1 #%
-								if   Trend >= 64*x: 				dataOut[TW]["Trend"] = "^^^^^^^"
-								elif Trend >= 32*x: 				dataOut[TW]["Trend"] = "^^^^^^"
-								elif Trend >= 16*x: 				dataOut[TW]["Trend"] = "^^^^^"
-								elif Trend >= 8*x: 					dataOut[TW]["Trend"] = "^^^^"
-								elif Trend >= 4*x: 					dataOut[TW]["Trend"] = "^^^"
-								elif Trend >= 2*x: 					dataOut[TW]["Trend"] = "^^"
-								elif Trend >= 1*x: 					dataOut[TW]["Trend"] = "^"
-								elif Trend <= 64*x: 				dataOut[TW]["Trend"] = "vvvvvvv"
-								elif Trend <= 32*x: 				dataOut[TW]["Trend"] = "vvvvvv"
-								elif Trend <= 16*x: 				dataOut[TW]["Trend"] = "vvvvv"
-								elif Trend <= 8*x: 					dataOut[TW]["Trend"] = "vvvv"
-								elif Trend <= 4*x: 					dataOut[TW]["Trend"] = "vvv"
-								elif Trend <= 2*x: 					dataOut[TW]["Trend"] = "vv"
-								elif Trend <= 1*x: 					dataOut[TW]["Trend"] = "v"
-								else:								dataOut[TW]["Trend"] = "="
+								dataOut[TW]["Trend"] = self.getTrendSymbol((dataOut[TW]["Consumption"])/max(0.001,abs(dataOut[TW]["End"]) + abs(dataOut[TW]["Start"]) ) *200 ,trendDeltaPercent, stdOr4)
 
 								secondsWeight[TW].append(secondsEffective)				# std dev
 								norm 								= secondsEffective/secTotalInBin[TW]  
@@ -1241,8 +1302,8 @@ class Plugin(indigo.PluginBase):
 								if value > 0: 
 									dataOut[TW]["Count1"]			+= 1					# count if > 0
 								if value != 0:
-									dataOut[TW]["UpTime"]			= norm			# time weighted average
-									#if dataOut[TW]["Ontime"] 	 == 0 				# datestamp
+									dataOut[TW]["UpTime"]			= norm					# time weighted average
+									#if dataOut[TW]["Ontime"] 	 == 0 						# datestamp
 								continue
 	
 							# regular datapoint in bin
@@ -1282,23 +1343,7 @@ class Plugin(indigo.PluginBase):
 
 
 							dataOut[TW]["Consumption"]				= dataOut[TW]["End"] - dataOut[TW]["Start"] 	
-							Trend								= (dataOut[TW]["Consumption"])/max(0.001,dataOut[TW]["End"] + dataOut[TW]["Start"] ) *200	
-							x = 1 #%
-							if   Trend >= 64*x: 				dataOut[TW]["Trend"] = "^^^^^^^"
-							elif Trend >= 32*x: 				dataOut[TW]["Trend"] = "^^^^^^"
-							elif Trend >= 16*x: 				dataOut[TW]["Trend"] = "^^^^^"
-							elif Trend >= 8*x: 					dataOut[TW]["Trend"] = "^^^^"
-							elif Trend >= 4*x: 					dataOut[TW]["Trend"] = "^^^"
-							elif Trend >= 2*x: 					dataOut[TW]["Trend"] = "^^"
-							elif Trend >= 1*x: 					dataOut[TW]["Trend"] = "^"
-							elif Trend <= 64*x: 				dataOut[TW]["Trend"] = "vvvvvvv"
-							elif Trend <= 32*x: 				dataOut[TW]["Trend"] = "vvvvvv"
-							elif Trend <= 16*x: 				dataOut[TW]["Trend"] = "vvvvv"
-							elif Trend <= 8*x: 					dataOut[TW]["Trend"] = "vvvv"
-							elif Trend <= 4*x: 					dataOut[TW]["Trend"] = "vvv"
-							elif Trend <= 2*x: 					dataOut[TW]["Trend"] = "vv"
-							elif Trend <= 1*x: 					dataOut[TW]["Trend"] = "v"
-							else:								dataOut[TW]["Trend"] = "="
+							dataOut[TW]["Trend"] = self.getTrendSymbol((dataOut[TW]["Consumption"])/max(0.001,abs(dataOut[TW]["End"]) + abs(dataOut[TW]["Start"])) *200 ,trendDeltaPercent, stdOr4)
 							
 						except	Exception:
 							self.logger.error("in  data line: {}  error ".format(dataIn[nn]), exc_info=True)
@@ -1306,9 +1351,9 @@ class Plugin(indigo.PluginBase):
 
 				#finish averages dates etc       
 				for TW in measures:
-					if  dataOut[TW]["DateMin"] !="" and dataOut[TW]["DateMin"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMin"] = self.dateLimits[TW][0]      
-					if  dataOut[TW]["DateMax"] !="" and dataOut[TW]["DateMax"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMax"] = self.dateLimits[TW][0]
-					if self.timeFormatInternal != self.timeFormatDisplay:
+					if  dataOut[TW]["DateMin"] != "" and dataOut[TW]["DateMin"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMin"] = self.dateLimits[TW][0]      
+					if  dataOut[TW]["DateMax"] != "" and dataOut[TW]["DateMax"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMax"] = self.dateLimits[TW][0]
+					if self.timeFormatInternal !=  self.timeFormatDisplay:
 						try:
 							for xxx in ["DateMin","DateMax","FirstEntryDate","LastEntryDate"]:
 								if dataOut[TW][xxx]	!= "": 
@@ -1343,6 +1388,30 @@ class Plugin(indigo.PluginBase):
 				
 		return dataOut
 
+
+####----------------- prep sql return data  ---------
+	def getTrendSymbol(self, trend ,trendDeltaPercent, stdOr4):       
+		try:  
+			if   trend >= 64*trendDeltaPercent: 				return self.TrendDeltaDisplay[stdOr4][0] 	#"^^^4^^^"
+			elif trend >= 32*trendDeltaPercent: 				return self.TrendDeltaDisplay[stdOr4][1] 	#"^^^4^^"
+			elif trend >= 16*trendDeltaPercent: 				return self.TrendDeltaDisplay[stdOr4][2] 	#"^^^4^"
+			elif trend >= 8*trendDeltaPercent: 					return self.TrendDeltaDisplay[stdOr4][3] 	#"^^^4"
+			elif trend >= 4*trendDeltaPercent: 					return self.TrendDeltaDisplay[stdOr4][4]	#"^^^"
+			elif trend >= 2*trendDeltaPercent: 					return self.TrendDeltaDisplay[stdOr4][5] 	#"^^"
+			elif trend >= 1*trendDeltaPercent: 					return self.TrendDeltaDisplay[stdOr4][6] 	#"^"
+			elif trend <= -64*trendDeltaPercent: 				return self.TrendDeltaDisplay[stdOr4][14] 	#"vvv4vvv"  
+			elif trend <= -32*trendDeltaPercent: 				return self.TrendDeltaDisplay[stdOr4][13]	#"vvv4vv"
+			elif trend <= -16*trendDeltaPercent: 				return self.TrendDeltaDisplay[stdOr4][12] 	#"vvv4v"
+			elif trend <= -8*trendDeltaPercent: 				return self.TrendDeltaDisplay[stdOr4][11] 	#"vvv4"
+			elif trend <= -4*trendDeltaPercent: 				return self.TrendDeltaDisplay[stdOr4][10] 	#"vvv"
+			elif trend <= -2*trendDeltaPercent: 				return self.TrendDeltaDisplay[stdOr4][9] 	#"vv"
+			elif trend <= -1*trendDeltaPercent: 				return self.TrendDeltaDisplay[stdOr4][8]	#"v"
+			else:												return self.TrendDeltaDisplay[stdOr4][7] 	# "="
+		except	Exception:
+			self.logger.error("dataIn: {}".format(dataIn), exc_info=True)
+		return "="
+		
+		
 ####----------------- prep sql return data  ---------
 	def removeDoublesInSQL(self,dataLines,ignoreLess,ignoreGreater):    # remove doubles same date/timestamp            
 		dataOut 		= []

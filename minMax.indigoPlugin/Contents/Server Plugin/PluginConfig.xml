@@ -4,8 +4,11 @@
         <Label>minMax Plugin                          Developed by Karl Wachs</Label>
     </Field>
     <Field id="infoLabel2" type="label">
-        <Label>Create variables with min/max/ave... of device-states for this/last hour/day/week/month ...
+        <Label>Create variables with min/max/ave/trend... of device-states for this/last hour /day/ last day week/month ...
 In menue: Define Device + States to be tracked 
+The plugin will read the indigo SQL database and create the apropriate variables that track these measurement
+You can set folder name etc here . 
+In menu Define Device + States ... you can select the device/states or variables to be tracked
 </Label>
     </Field>
     
@@ -17,11 +20,40 @@ In menue: Define Device + States to be tracked
 
     <Field id="timeFormatDisplay"   type="textfield" defaultValue="%Y-%m-%d-%H:%M:%S" >  <Label>Format to show dates:</Label> </Field>
     <Field id="timeFormatDisplay2"  type="textfield" defaultValue="%Y-%m-%d %H:%M:%S = 2018-01-24 18:33:05" readonly ="true">  <Label>examples</Label> </Field>
-    <Field id="timeFormatDisplay3"  type="textfield" defaultValue="%a = weekday" readonly ="true">  <Label>examples</Label> </Field>
+    <Field id="timeFormatDisplay3"  type="textfield" defaultValue="%a = Monday" readonly ="true">  <Label>examples</Label> </Field>
     <Field id="timeFormatDisplay4"  type="textfield" defaultValue="%I%p = 12am" readonly ="true">  <Label>examples</Label> </Field>
     <Field id="timeFormatDisplay5"  type="textfield" defaultValue="%y = 2 digit year" readonly ="true">  <Label>examples</Label> </Field>
     <Field id="timeFormatDisplay6"  type="textfield" defaultValue="% b short local month" readonly ="true">  <Label>examples</Label> </Field>
-    <Field id="timeFormatDisplay7"  type="textfield" defaultValue="docs.python.org/2/library/datetime.html" readonly ="true">  <Label>Webpage</Label> </Field>
+    <Field id="timeFormatDisplay7"  type="textfield" defaultValue="docs.python.org/3/library/datetime.html" readonly ="true">  <Label>Webpage, scroll to bottom</Label> </Field>
+    <Field id="TrendDeltaPercent"   type="menu" defaultValue="1.0" >  
+        <List>
+			<Option value="0.1"  >0.1%</Option>
+			<Option value="0.2"  >0.2%</Option>
+            <Option value="0.5"  >0.5%</Option>
+            <Option value="1.0"  >1%</Option>
+            <Option value="1.5"  >1.5%</Option>
+            <Option value="2.0"  >2%</Option>
+            <Option value="3.0"  >3%</Option>
+            <Option value="4.0"  >4%</Option>
+            <Option value="5.0"  >5%</Option>
+            <Option value="6.0"  >6%</Option>
+            <Option value="7.0"  >7%</Option>
+            <Option value="8.0"  >8%</Option>
+            <Option value="9.0"  >9%</Option>
+            <Option value="10.0"  >10%</Option>
+            <Option value="15.0"  >15%</Option>
+            <Option value="20.0"  >20%</Option>
+        </List>
+    
+    <Label>Trend Delta Percent base value (default)</Label> </Field>
+
+	<Field id="TrendDeltaDisplay"   type="menu" defaultValue="4">  
+		<List>
+			<Option value="^"  >show ^^^^^^</Option>
+			<Option value="4"  >show ^^^4^^^</Option>
+		</List>
+		<Label>Show ^^^^^^^ .. or ^^^4^^^ in Trend display </Label> 
+	 </Field>
 
     <Field
         id="liteOrPsql"
