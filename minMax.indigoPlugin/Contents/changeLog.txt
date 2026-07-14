@@ -1,3 +1,23 @@
+changes in V 2022.18.29 @ 2026-07-07
+==================  
+bug fix release (code audit):
+1. fixed NameError in doSQL error handler (evId -> devId) and in getTrendSymbol error handler
+2. fixed bad format string in calculate() bad-data log that aborted the whole calculation
+3. fixed checkbox id typo lastDay18-6StdStdDevSimple -> lastDay18-6StdDevSimple in MenuItems.xml
+4. calculate(): virtual-point shift no longer leaks into the other time windows (wrong averages/dates)
+5. refreshRate preference is now used by the main loop and can be set in the plugin config (was hardcoded 30 secs)
+6. main loop no longer swallows errors silently; plugin does not restart itself on normal shutdown
+7. variable create/update errors no longer abort the whole fill cycle; bad variable names are logged
+8. variableUpdated/deviceUpdated protected against malformed tracking entries
+9. saveDevList: forced save on shutdown/config change (20 sec throttle could drop last changes)
+10. doSQL: error output after 3 retries is discarded instead of parsed as data; sqlite query now ORDERed by ts
+11. readPopen returns empty strings instead of None on error
+12. remove-from-tracking dialog: variables are now correctly identified as variables
+13. postgres password no longer printed in clear text in config printout
+14. empty time windows now report 0 for Min/Max/Start/End instead of +-987654321000 sentinels
+15. removed unused imports and dead code
+
+
 changes in V 2022.18.28 @ 2025-09-15
 ==================  
 1. trend values: added  option to change variable values fro vvvvvvv ... ^^^^^^^^ to vvv4vvv vv4vvv ... v ..= .. ^ .. ^^^4^^^

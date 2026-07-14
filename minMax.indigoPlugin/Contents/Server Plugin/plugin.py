@@ -10,25 +10,13 @@
 #
 
 
-import os, sys, subprocess, pwd
+import os, subprocess, pwd
 import datetime
 import time
 import json
-#from time import strftime
-import urllib
-import fcntl
-import signal
 import copy
 import logging
 import math
-import queue
-
-try:
-	unicode("x")
-except:
-	unicode = str
-
-import traceback
 
 
 '''
@@ -97,7 +85,7 @@ _debugAreas				= ["Loop","Sql","Setup","AddData","Fill","Special","all"]
 ################################################################################
 class Plugin(indigo.PluginBase):
 ####----------------- logfile  ---------
-	def __init__(self:"",
+	def __init__(self,
 						   pluginId, pluginDisplayName, pluginVersion, pluginPrefs):
 		indigo.PluginBase.__init__(self, pluginId, pluginDisplayName, pluginVersion, pluginPrefs)
 
@@ -194,7 +182,7 @@ class Plugin(indigo.PluginBase):
 		for d in _debugAreas:
 			if self.pluginPrefs.get("debug"+d, False): self.debugLevel.append(d)
 		self.timeFormatInternal			= "%Y-%m-%d-%H:%M:%S"
-		self.refreshRate        		= float(self.pluginPrefs.get("refreshRate",5))
+		self.refreshRate        		= max(5., float(self.pluginPrefs.get("refreshRate",30)))
 		self.liteOrPsql         		= self.pluginPrefs.get(     "liteOrPsql",       "sqlite")
 		self.liteOrPsqlString   		= self.pluginPrefs.get(     "liteOrPsqlString", "/Library/PostgreSQL/bin/psql indigo_history postgres ")
 		self.postgresUserId				= self.pluginPrefs.get(		"postgresUserId",	"postgres")
@@ -365,6 +353,7 @@ class Plugin(indigo.PluginBase):
 			#         12345678901234567890123456789012345 12345678901212345678901234567 123456789012312345678901234
 			header = "Short_Name      Dev/Var-Name-----------------------------   ID         State                  ignoreLess ignoreGreater    format  "
 			outTotal += "\n"+header+" tracking    measures: ------------"
+			delList = []
 			for devId in copy.deepcopy(self.devList):
 				if devId == printDevId or printDevId == "":
 					
@@ -388,18 +377,23 @@ class Plugin(indigo.PluginBase):
 
 						out = "{:13.0f}{:14.0f} '{:>8}'  ".format(self.devList[devId]["states"][state]["ignoreLess"], self.devList[devId]["states"][state]["ignoreGreater"], self.devList[devId]["states"][state]["formatNumbers"])
 
-						if self.devList[devId]["devOrVar"] ==  "Var":  
-							try:         
-								outTotal += "\n{:16}{:42}{:>12} {:>19} {}{}".format(shortName, indigo.variables[int(devId)].name, devId, state, out, measures) 
+						if self.devList[devId]["devOrVar"] ==  "Var":
+							try:
+								outTotal += "\n{:16}{:42}{:>12} {:>19} {}{}".format(shortName, indigo.variables[int(devId)].name, devId, state, out, measures)
 							except	Exception:
-								outTotal += "\n===> var: id:{} does not exist, removing".format(devId) 
-								del self.devList[devId]
-						else:           
-							try:         
-								outTotal += "\n{:16}{:42}{:>12} {:>19} {}{}".format(shortName, indigo.devices[int(devId)].name,   devId, state, out, measures) 
+								outTotal += "\n===> var: id:{} does not exist, removing".format(devId)
+								if devId not in delList: delList.append(devId)
+						else:
+							try:
+								outTotal += "\n{:16}{:42}{:>12} {:>19} {}{}".format(shortName, indigo.devices[int(devId)].name,   devId, state, out, measures)
 							except	Exception:
-								outTotal += "\n===> dev: id:{} does not exist, removing".format(devId) 
-								del self.devList[devId]
+								outTotal += "\n===> dev: id:{} does not exist, removing".format(devId)
+								if devId not in delList: delList.append(devId)
+
+			for devId in delList:
+				try:	del self.devList[devId]
+				except:	pass
+			if delList: self.saveNow = True
 
 			self.indiLOG.log(20, outTotal )
 			self.indiLOG.log(20,"config parameters foldername         >{}<".format(self.variFolderName) )
@@ -411,7 +405,7 @@ class Plugin(indigo.PluginBase):
 			self.indiLOG.log(20,"config parameters sqlite Or Psql     >{}<".format(self.liteOrPsql ) )
 			if self.liteOrPsql == "psql":
 				self.indiLOG.log(20,"config parameters psqlString         >{}<".format(self.liteOrPsqlString) )
-				self.indiLOG.log(20,"config parameters postgresPassword   >{}<".format(self.postgresPassword ) )
+				self.indiLOG.log(20,"config parameters postgresPassword   >{}<".format("***set***" if self.postgresPassword != "" else "" ) )
 			self.indiLOG.log(20,    "Trend Delta Percent Base Default:    >{:.1f}%< ".format(self.TrendDeltaPercentDefault) )
 			self.indiLOG.log(20,    "Trend Delta display:                 >{:}< ".format(self.TrendDeltaDisplayDefault) )
 
@@ -463,17 +457,19 @@ class Plugin(indigo.PluginBase):
 			self.devOrVarExist = "Dev"
 
 ####-----------------   ---------
-	def filterExistingDevices(self,filter="",valuesDict="",typeId=""):  
+	def filterExistingDevices(self,filter="",valuesDict="",typeId=""):
 		retList = []
 		for devId in self.devList:
-			try: retList.append([devId,indigo.devices[int(devId)].name])
-			except: 
-				try:retList.append([devId,indigo.variables[int(devId)].name])
-				except: pass
+			if self.devList[devId].get("devOrVar") == "Var":
+				try:	retList.append([devId+"-V",indigo.variables[int(devId)].name])
+				except:	pass
+			else:
+				try:	retList.append([devId,indigo.devices[int(devId)].name])
+				except:	pass
 		return retList
 ####-----------------   ---------
-	def filterExistingStates(self,filter="",valuesDict="",typeId=""):                
-		if self.devOrVarExist == 0: return [(0,0)]
+	def filterExistingStates(self,filter="",valuesDict="",typeId=""):
+		if self.devIDSelectedExist == 0: return [("0","select device")]
 		devId = "{}".format(self.devIDSelectedExist)
 		retList =[]
 		if devId in self.devList:
@@ -705,12 +701,13 @@ class Plugin(indigo.PluginBase):
 
 				
 			for TW in  _timeWindows:
-				use=False
-				for MB in _MeasBins: 
-					if valuesDict[TW+MB]:
+				if TW not in self.devList[devId]["states"][state]["measures"]:
+					self.devList[devId]["states"][state]["measures"][TW] = {}
+				for MB in _MeasBins:
+					if valuesDict.get(TW+MB, False):
 						self.devList[devId]["states"][state]["measures"][TW][MB]=True
 						anyOne = True
-					else:    
+					else:
 						self.devList[devId]["states"][state]["measures"][TW][MB]=False
 
 			self.devList[devId]["states"][state]["TrendDeltaPercent"]  = float(valuesDict["TrendDeltaPercent"])
@@ -766,27 +763,26 @@ class Plugin(indigo.PluginBase):
 	def runConcurrentThread(self):
 
 		self.indiLOG.log(20,"runConcurrentThread")
-		self.dorunConcurrentThread()
-		self.saveDevList()
+		restart = self.dorunConcurrentThread()
+		self.saveDevList(force=True)
 
 
 		if self.quitNow != "":
 			indigo.server.log( "runConcurrentThread stopping plugin due to:  ::::: {} :::::".format(self.quitNow))
 
 		self.quitNow = ""
-	
-		indigo.server.savePluginPrefs() 
-		self.sleep(0.2)
 
-		indigo.server.getPlugin(self.pluginId).restart(waitUntilDone=False)
-		
-		time.sleep(0.5)
-		return 
+		indigo.server.savePluginPrefs()
+
+		if restart:
+			indigo.server.getPlugin(self.pluginId).restart(waitUntilDone=False)
+			time.sleep(0.5)
+		return
 
 ####-----------------   main loop            ---------
-	def dorunConcurrentThread(self): 
+	def dorunConcurrentThread(self):
 
-		refreshRate					= 30
+		refreshRate					= self.refreshRate
 		lastUpdate					= 0
 		nextMinTimeSQL 				= 3600
 		lastSqlTime					= 0
@@ -828,7 +824,7 @@ class Plugin(indigo.PluginBase):
 					lastUpdate = time.time()
 
 				if self.saveNow:
-					self.saveDevList()
+					self.saveDevList(force=True)
 					self.saveNow = False
 
 				if not self.subscribeDevice:
@@ -843,60 +839,69 @@ class Plugin(indigo.PluginBase):
 					if self.doSQLNow: 			break
 					if self.newdata[0]: 		break
 
-				
+
+		except self.StopThread:
+			return False	# indigo is stopping the plugin, do not restart
 		except Exception:
-			pass
+			self.logger.error("", exc_info=True)
+
+		return True
+
+
+####-----------------   ---------
+	def variableUpdated(self, old, new):
+		try:
+			devId = "{}".format(old.id)
+			if devId not in self.devList: return
+			if old.value == new.value: return
+
+			nowDD 				= datetime.datetime.now()
+			ddNow 				= nowDD.strftime(self.timeFormatInternal)
+			ttNow 				= round((nowDD-self.epoch).total_seconds(),1)
+
+			state = "value"
+			if state not in self.devList[devId].get("states",{}): return
+			nrec = len(self.devList[devId]["states"][state]["data"])
+			if  nrec > 0 and ttNow < self.devList[devId]["states"][state]["data"][-1][2]:
+				self.indiLOG.log(20,"bad old devList for {}-{}, old:{}, new:{}, dt:{}, data stored, last recs:{}".format(old.name,state, old.value, new.value, ttNow - self.devList[devId]["states"][state]["data"][-1][2], self.devList[devId]["states"][state]["data"][-2:] ))
+				return
+
+			self.devList[devId]["states"][state]["data"].append((self.getNumber(new.value), ddNow, ttNow))
+			self.newdata[devId] = True
+			self.newdata[0] = True
+			if self.decideMyLog("AddData"): self.indiLOG.log(10,"new data for {}-{}, old:{}, new:{}, data added, last 2 recs:{}".format(old.name,state, old.value, new.value, self.devList[devId]["states"][state]["data"][-min(2,nrec):] ))
+		except	Exception:
+			self.logger.error("", exc_info=True)
 
 		return
 
 
 ####-----------------   ---------
-	def variableUpdated(self, old, new):
-		devId = "{}".format(old.id)
-		if devId not in self.devList: return 
-		if old.value == new.value: return
-
-		nowDD 				= datetime.datetime.now()
-		ddNow 				= nowDD.strftime(self.timeFormatInternal)
-		ttNow 				= round((nowDD-self.epoch).total_seconds(),1)
-
-		state = "value"
-		nrec = len(self.devList[devId]["states"][state]["data"])
-		if  nrec > 0 and ttNow < self.devList[devId]["states"][state]["data"][-1][2]:
-			self.indiLOG.log(20,"bad old devList for {}-{}, old:{}, new:{}, dt:{}, data stored, last recs:{}".format(old.name,state, old.value, new.value, ttNow - self.devList[devId]["states"][state]["data"][-1][2], self.devList[devId]["states"][state]["data"][-2:] )) 
-			return 
-
-		self.devList[devId]["states"][state]["data"].append((self.getNumber(new.value), ddNow, ttNow))
-		self.newdata[devId] = True
-		self.newdata[0] = True
-		if self.decideMyLog("AddData"): self.indiLOG.log(10,"new data for {}-{}, old:{}, new:{}, data added, last 2 recs:{}".format(old.name,state, old.value, new.value, self.devList[devId]["states"][state]["data"][-min(2,nrec):] )) 
-
-		return 
-			
-
-####-----------------   ---------
 	def deviceUpdated(self,  old, new):
-		devId = "{}".format(old.id)
-		if devId not in self.devList: return 
-		nowDD 				= datetime.datetime.now()
-		ddNow 				= nowDD.strftime(self.timeFormatInternal)
-		ttNow 				= round((nowDD-self.epoch).total_seconds(),1)
+		try:
+			devId = "{}".format(old.id)
+			if devId not in self.devList: return
+			nowDD 				= datetime.datetime.now()
+			ddNow 				= nowDD.strftime(self.timeFormatInternal)
+			ttNow 				= round((nowDD-self.epoch).total_seconds(),1)
 
-		for state in self.devList[devId]["states"]:
-			if state not in new.states: continue
-			if old.states[state] == new.states[state]: continue
+			for state in self.devList[devId].get("states",{}):
+				if state not in new.states: continue
+				if old.states[state] == new.states[state]: continue
 
-			nrec = len(self.devList[devId]["states"][state]["data"])
-			if  nrec > 0 and ttNow < self.devList[devId]["states"][state]["data"][-1][2]:
-				self.indiLOG.log(20,"bad old devList for {}-{}, old:{}, new:{}, dt:{}, data stored, last recs:{}".format(old.name,state, old.states[state], new.states[state], ttNow - self.devList[devId]["states"][state]["data"][-1][2], self.devList[devId]["states"][state]["data"][-2:] )) 
-				continue
+				nrec = len(self.devList[devId]["states"][state]["data"])
+				if  nrec > 0 and ttNow < self.devList[devId]["states"][state]["data"][-1][2]:
+					self.indiLOG.log(20,"bad old devList for {}-{}, old:{}, new:{}, dt:{}, data stored, last recs:{}".format(old.name,state, old.states[state], new.states[state], ttNow - self.devList[devId]["states"][state]["data"][-1][2], self.devList[devId]["states"][state]["data"][-2:] ))
+					continue
 
-			self.devList[devId]["states"][state]["data"].append((self.getNumber(new.states[state]), ddNow, ttNow))
-			self.newdata[devId] = True
-			self.newdata[0] = True
-			if self.decideMyLog("AddData"): self.indiLOG.log(10,"new data for {}-{}, old:{}, new:{}, data added, last 2 recs:{}".format(old.name,state, old.states[state], new.states[state], self.devList[devId]["states"][state]["data"][-min(2,nrec):] )) 
+				self.devList[devId]["states"][state]["data"].append((self.getNumber(new.states[state]), ddNow, ttNow))
+				self.newdata[devId] = True
+				self.newdata[0] = True
+				if self.decideMyLog("AddData"): self.indiLOG.log(10,"new data for {}-{}, old:{}, new:{}, data added, last 2 recs:{}".format(old.name,state, old.states[state], new.states[state], self.devList[devId]["states"][state]["data"][-min(2,nrec):] ))
+		except	Exception:
+			self.logger.error("", exc_info=True)
 
-		return 
+		return
 
 ####-----------------  do the calculations and sql statements  ---------
 	def fillVariables(self, condSQL):
@@ -960,41 +965,44 @@ class Plugin(indigo.PluginBase):
 						for MB in _MeasBins:
 							if MB not in params["measures"][TW]:	continue
 							if not params["measures"][TW][MB]:		continue
-							try:	vari = indigo.variables[varName+TW+"_"+MB]
+							varFullName = varName+TW+"_"+MB
+							try:	indigo.variables[varFullName]
 							except:
-								try:	indigo.variable.create(varName+TW+"_"+MB,      "", self.variFolderName)
-								except:	pass
+								try:	indigo.variable.create(varFullName,      "", self.variFolderName)
+								except	Exception:
+									self.indiLOG.log(40,"error creating variable >{}<, check name for invalid characters (only letters, numbers, .-_ allowed)".format(varFullName) )
+									continue
 
-							if  MB.find("Count") > -1:
-								if indigo.variables[varName+TW+"_"+MB].value != "%d"%(value[MB]):
-									nchanges += 1
-									indigo.variable.updateValue(varName+TW+"_"+MB,          "%d"%(value[MB]) )
-							elif MB.find("Date") > -1:
-								if indigo.variables[varName+TW+"_"+MB].value != value[MB]:
-									nchanges += 1
-									indigo.variable.updateValue(varName+TW+"_"+MB,          value[MB])
-							elif MB.find("Trend") > -1:
-								if indigo.variables[varName+TW+"_"+MB].value != value.get("Trend","="):
-									nchanges += 1
-									indigo.variable.updateValue(varName+TW+"_"+MB,          value.get("Trend","="))
-							else:
-								try:	
-									if indigo.variables[varName+TW+"_"+MB].value != params["formatNumbers"]%(value[MB]):
+							try:
+								if  MB.find("Count") > -1:
+									if indigo.variables[varFullName].value != "%d"%(value[MB]):
 										nchanges += 1
-										indigo.variable.updateValue(varName+TW+"_"+MB,          params["formatNumbers"]%(value[MB]))
-								except:	
+										indigo.variable.updateValue(varFullName,          "%d"%(value[MB]) )
+								elif MB.find("Date") > -1:
+									if indigo.variables[varFullName].value != value[MB]:
+										nchanges += 1
+										indigo.variable.updateValue(varFullName,          value[MB])
+								elif MB.find("Trend") > -1:
+									if indigo.variables[varFullName].value != value.get("Trend","="):
+										nchanges += 1
+										indigo.variable.updateValue(varFullName,          value.get("Trend","="))
+								else:
 									try:
-										indigo.variable.updateValue(varName+TW+"_"+MB,          str(value[MB]))
-										nchanges += 1
+										if indigo.variables[varFullName].value != params["formatNumbers"]%(value[MB]):
+											nchanges += 1
+											indigo.variable.updateValue(varFullName,          params["formatNumbers"]%(value[MB]))
 									except:
-										self.indiLOG.log(20,"error for state:{:}, varName:{:}, TW:{:}, MB:{:}, value:{:}".format(state, varName, TW, MB, value) )
+										indigo.variable.updateValue(varFullName,          str(value[MB]))
+										nchanges += 1
+							except	Exception:
+								self.indiLOG.log(20,"error for state:{:}, varName:{:}, TW:{:}, MB:{:}, value:{:}".format(state, varFullName, TW, MB, value) )
 
 
 			for devId in delList: 
 				del self.devList[devId]
 				
 			if len(delList) > 0:
-				self.saveDevList()
+				self.saveDevList(force=True)
 				
 			if self.decideMyLog("Fill"): self.indiLOG.log(10,"filling Variables  #of changes:{}  total:{:.2f}[secs], doSQL:{}".format(nchanges,  time.time() - t0,  condSQL) )
 			return True
@@ -1118,8 +1126,8 @@ class Plugin(indigo.PluginBase):
 
 
 ####----------------- do the sql statement  ---------
-	def doSQL(self, devId ,state, devOrVar): 
-		dataOut = []
+	def doSQL(self, devId ,state, devOrVar):
+		dataOut = ""
 		ii 		= 0
 		t0 = time.time()
 		try:
@@ -1132,7 +1140,7 @@ class Plugin(indigo.PluginBase):
 
 				if self.liteOrPsql =="sqlite": 
 					sql = "/usr/bin/sqlite3  -separator \";\" '"+self.indigoPath+ "logs/indigo_history.sqlite' \"select strftime('%Y-%m-%d-%H:%M:%S',ts,'localtime'), "
-					sql4 ="  where ts > '"+ self.firstDate+"';\""
+					sql4 ="  where ts > '"+ self.firstDate+"'  ORDER by ts ;\""
 					cmd =sql+sql2+sql4
 
 				else:    
@@ -1150,13 +1158,16 @@ class Plugin(indigo.PluginBase):
 					ii += 1
 					self.sleep(1)
 					continue
-				break    
+				break
+			if ret.find("ERROR") > -1:
+				self.indiLOG.log(40,"sql error after 3 tries for devId:{}, state:{}: {}".format(devId, state, ret[:300]) )
+				return ""
 			dataOut = ret
 			if self.decideMyLog("Sql"): self.indiLOG.log(10,"data-out: "+ret[:300])
 			if self.decideMyLog("Sql"): self.indiLOG.log(10,"err-out:  "+err[:300])
 		except	Exception:
-			self.logger.error("devId:{} ,state:{}, devOrVar:{}".format(evId ,state, devOrVar), exc_info=True)
-		
+			self.logger.error("devId:{} ,state:{}, devOrVar:{}".format(devId ,state, devOrVar), exc_info=True)
+
 		return dataOut
 		
 ####----------------- calculate ave min max for all  ---------
@@ -1206,8 +1217,8 @@ class Plugin(indigo.PluginBase):
 
 					secondsDataPoint  = dataIn[nn][2]
 					# ceck make sure we have time stamp
-					if type(secondsDataPoint) != type(1.0): 
-						self.indiLOG.log(10,"dataIn bad data nn:{}, =====: {} ".format( dataIn[nn]))
+					if type(secondsDataPoint) != type(1.0):
+						self.indiLOG.log(10,"dataIn bad data nn:{}, =====: {} ".format(nn, dataIn[nn]))
 						continue
 
 					value	= dataIn[nn][0]
@@ -1226,22 +1237,28 @@ class Plugin(indigo.PluginBase):
 					# loop through the timewindows
 					for TW in measures:
 						try:
-							#if TW =="thisHour" and lastData: self.indiLOG.log(10,"{}, 1    secondsNextDataPoint:{:.0f}, secondsDataPoint:{:.0f}, lastSecInData:{:.0f},  ds:{:.0f}- {:.0f}".format(name,  secondsNextDataPoint, secondsDataPoint,lastSecInData,  secondsNextDataPoint - secondsDataPoint, secondsNextDataPoint - self.dateLimits[TW][2]))
+							#if TW =="thisHour" and lastData: self.indiLOG.log(10,"{}, 1    secondsNextDataPointTW:{:.0f}, secondsDataPointTW:{:.0f}, lastSecInDataTW:{:.0f},  ds:{:.0f}- {:.0f}".format(name,  secondsNextDataPointTW, secondsDataPointTW,lastSecInDataTW,  secondsNextDataPointTW - secondsDataPointTW, secondsNextDataPointTW - self.dateLimits[TW][2]))
+							# use TW-local copies, the virtual-point shift below must not leak into the other time windows
+							secondsDataPointTW		= secondsDataPoint
+							secondsNextDataPointTW	= secondsNextDataPoint
+							lastSecInDataTW			= lastSecInData
+							dateDataPointTW			= dateDataPoint
+
 							# skip if not at least one before TW or after timewindow
 
-							if secondsDataPoint      < self.dateLimits[TW][2] and	  lastData:	
-								secondsNextDataPoint = self.dateLimits[TW][2] + 3 # add virtual point in time window to get existing value into time window
-								secondsDataPoint	 = self.dateLimits[TW][2] + 2
-								lastSecInData		 = self.dateLimits[TW][2] + 1
-								dateDataPoint		 = self.dateLimits[TW][0]
+							if secondsDataPointTW      < self.dateLimits[TW][2] and	  lastData:
+								secondsNextDataPointTW = self.dateLimits[TW][2] + 3 # add virtual point in time window to get existing value into time window
+								secondsDataPointTW	 = self.dateLimits[TW][2] + 2
+								lastSecInDataTW		 = self.dateLimits[TW][2] + 1
+								dateDataPointTW		 = self.dateLimits[TW][0]
 
-							if secondsNextDataPoint  < self.dateLimits[TW][2]: 					continue
-							if secondsNextDataPoint  > self.dateLimits[TW][3] and not lastData:	continue
+							if secondsNextDataPointTW  < self.dateLimits[TW][2]: 					continue
+							if secondsNextDataPointTW  > self.dateLimits[TW][3] and not lastData:	continue
 
-							#if TW =="thisHour" and lastData: self.indiLOG.log(10,"{},2    secondsNextDataPoint:{:.0f}, secondsDataPoint:{:.0f}, lastSecInData:{},  ds:{:.0f}".format( name,  secondsNextDataPoint, secondsDataPoint,lastSecInData,  secondsNextDataPoint - secondsDataPoint ))
+							#if TW =="thisHour" and lastData: self.indiLOG.log(10,"{},2    secondsNextDataPointTW:{:.0f}, secondsDataPointTW:{:.0f}, lastSecInDataTW:{},  ds:{:.0f}".format( name,  secondsNextDataPointTW, secondsDataPointTW,lastSecInDataTW,  secondsNextDataPointTW - secondsDataPointTW ))
 
 							#_MeasBins       =["Min","Max","DateMin","DateMax","Ave","Count","Count ,..
-							# self.dateLimits[TW]	[0] = start datetime string 
+							# self.dateLimits[TW]	[0] = start datetime string
 							#						[1] = end date time string
 							#						[2] = start time sec since epoch
 							#						[2] = end time sec since epoch
@@ -1249,47 +1266,47 @@ class Plugin(indigo.PluginBase):
 
 							# calulate validity of this datapoint from to secs, use that as weight fator for average
 							#                                 # of seconds in bin              +90secs    last sec in bin           fist sec in bin  == dont take whole bin otherwise last value is overweighted
-							secTotalInBin[TW] 	= min( self.dateLimits[TW][4], min( lastSecInData, self.dateLimits[TW][3]) - self.dateLimits[TW][2] ) 
+							secTotalInBin[TW] 	= min( self.dateLimits[TW][4], min( lastSecInDataTW, self.dateLimits[TW][3]) - self.dateLimits[TW][2] )
 							if secTotalInBin[TW] <= 0:
-								self.indiLOG.log(20,"error delta sec <=0 for {}  lastData{} lastSecInData:{} dateLimits:{}".format( TW, lastData, lastSecInData, self.dateLimits[TW]  ))
+								self.indiLOG.log(20,"error delta sec <=0 for {}  lastData{} lastSecInData:{} dateLimits:{}".format( TW, lastData, lastSecInDataTW, self.dateLimits[TW]  ))
 								secTotalInBin[TW] = 1
 
 							norm = 1.0
 
-							#if TW =="thisHour" and lastData: self.indiLOG.log(10,"{},3    secondsNextDataPoint:{:.0f}, secondsDataPoint:{:.0f}, lastSecInData:{},  ds:{:.0f}, secTotalInBin:{}".format( name,  secondsNextDataPoint, secondsDataPoint,lastSecInData,  secondsNextDataPoint - secondsDataPoint,secTotalInBin[TW] ))
+							#if TW =="thisHour" and lastData: self.indiLOG.log(10,"{},3    secondsNextDataPointTW:{:.0f}, secondsDataPointTW:{:.0f}, lastSecInDataTW:{},  ds:{:.0f}, secTotalInBin:{}".format( name,  secondsNextDataPointTW, secondsDataPointTW,lastSecInDataTW,  secondsNextDataPointTW - secondsDataPointTW,secTotalInBin[TW] ))
 
 
-							if 	secondsNextDataPoint > self.dateLimits[TW][3]:  # no entry in this bin (time window)
-								secondsEffective		   		=	self.dateLimits[TW][3] - secondsDataPoint
+							if 	secondsNextDataPointTW > self.dateLimits[TW][3]:  # no entry in this bin (time window)
+								secondsEffective		   		=	self.dateLimits[TW][3] - secondsDataPointTW
 								test = 1
-							elif secondsDataPoint < self.dateLimits[TW][2]:								  # at least one entry in bin (time window)
-								secondsEffective		   		=	secondsNextDataPoint - self.dateLimits[TW][2]
+							elif secondsDataPointTW < self.dateLimits[TW][2]:								  # at least one entry in bin (time window)
+								secondsEffective		   		=	secondsNextDataPointTW - self.dateLimits[TW][2]
 								test = 2
 							else:									# next is right of this time window
-								secondsEffective		   		=	secondsNextDataPoint - secondsDataPoint
+								secondsEffective		   		=	secondsNextDataPointTW - secondsDataPointTW
 								test = 3
 
 							try:	testL = dataOut[TW]["FirstEntryDate"] == ""
 							except:	continue
 
 							if  testL:  ## use last below date range?
-								dataOut[TW]["Start"] 				= value 
-								dataOut[TW]["End"] 					= value 
+								dataOut[TW]["Start"] 				= value
+								dataOut[TW]["End"] 					= value
 
-								dataOut[TW]["LastEntryDate"] 		= dateDataPoint 
-								dataOut[TW]["LastEntryValue"]		= value 
+								dataOut[TW]["LastEntryDate"] 		= dateDataPointTW
+								dataOut[TW]["LastEntryValue"]		= value
 
-								dataOut[TW]["FirstEntryDate"] 		= dateDataPoint 				# 
-								dataOut[TW]["FirstEntryValue"]		= value 			# 
+								dataOut[TW]["FirstEntryDate"] 		= dateDataPointTW 				#
+								dataOut[TW]["FirstEntryValue"]		= value 			#
 
 								valuesX[TW].append(value)				# std dev
 
 								dataOut[TW]["Start"] 				= value 				# Start value
-								dataOut[TW]["End"] 					= value 				# 
+								dataOut[TW]["End"] 					= value 				#
 								dataOut[TW]["Min"] 					= value 				# min
-								dataOut[TW]["DateMin"] 				= dateDataPoint  		# datestamp
-								dataOut[TW]["Max"] 					= value 				# max 
-								dataOut[TW]["DateMax"] 				= dateDataPoint  		# datestamp
+								dataOut[TW]["DateMin"] 				= dateDataPointTW  		# datestamp
+								dataOut[TW]["Max"] 					= value 				# max
+								dataOut[TW]["DateMax"] 				= dateDataPointTW  		# datestamp
 								dataOut[TW]["Consumption"]			= dataOut[TW]["End"] - dataOut[TW]["Start"] 	
 								dataOut[TW]["Trend"] = self.getTrendSymbol((dataOut[TW]["Consumption"])/max(0.001,abs(dataOut[TW]["End"]) + abs(dataOut[TW]["Start"]) ) *200 ,trendDeltaPercent, stdOr4)
 
@@ -1307,22 +1324,22 @@ class Plugin(indigo.PluginBase):
 								continue
 	
 							# regular datapoint in bin
-							try: 	testL = secondsDataPoint  > self.dateLimits[TW][2] and  secondsDataPoint <=  self.dateLimits[TW][3]
+							try: 	testL = secondsDataPointTW  > self.dateLimits[TW][2] and  secondsDataPointTW <=  self.dateLimits[TW][3]
 							except:	continue
-							#if TW =="lastMonth": self.indiLOG.log(20,"{}  {:.1f} testL:{} ".format( dateDataPoint, value, testL))
+							#if TW =="lastMonth": self.indiLOG.log(20,"{}  {:.1f} testL:{} ".format( dateDataPointTW, value, testL))
 
 							if testL:  ## in date range?
 								valuesX[TW].append(value)				# std dev
 
 								if dataOut[TW]["Min"] > value:
-									dataOut[TW]["Min"] 				= value				# min 
-									dataOut[TW]["DateMin"] 			= dateDataPoint		# datestamp
+									dataOut[TW]["Min"] 				= value				# min
+									dataOut[TW]["DateMin"] 			= dateDataPointTW	# datestamp
 								if dataOut[TW]["Max"] < value:
-									dataOut[TW]["Max"] 				= value				# max  
-									dataOut[TW]["DateMax"]			= dateDataPoint		# datestamp
+									dataOut[TW]["Max"] 				= value				# max
+									dataOut[TW]["DateMax"]			= dateDataPointTW	# datestamp
 
-								dataOut[TW]["LastEntryDate"] 	= dateDataPoint 		#
-								dataOut[TW]["LastEntryValue"]	= value 				# 
+								dataOut[TW]["LastEntryDate"] 	= dateDataPointTW 		#
+								dataOut[TW]["LastEntryValue"]	= value 				#
 
 	
 								dataOut[TW]["End"] 					= value 			# min
@@ -1349,9 +1366,14 @@ class Plugin(indigo.PluginBase):
 							self.logger.error("in  data line: {}  error ".format(dataIn[nn]), exc_info=True)
 							continue       
 
-				#finish averages dates etc       
+				#finish averages dates etc
 				for TW in measures:
-					if  dataOut[TW]["DateMin"] != "" and dataOut[TW]["DateMin"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMin"] = self.dateLimits[TW][0]      
+					if dataOut[TW]["Count"] == 0:	# no data in window, do not publish the init sentinels
+						dataOut[TW]["Min"]		= 0.
+						dataOut[TW]["Max"]		= 0.
+						dataOut[TW]["Start"]	= 0.
+						dataOut[TW]["End"]		= 0.
+					if  dataOut[TW]["DateMin"] != "" and dataOut[TW]["DateMin"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMin"] = self.dateLimits[TW][0]
 					if  dataOut[TW]["DateMax"] != "" and dataOut[TW]["DateMax"] <   self.dateLimits[TW][0]: dataOut[TW]["DateMax"] = self.dateLimits[TW][0]
 					if self.timeFormatInternal !=  self.timeFormatDisplay:
 						try:
@@ -1408,7 +1430,7 @@ class Plugin(indigo.PluginBase):
 			elif trend <= -1*trendDeltaPercent: 				return self.TrendDeltaDisplay[stdOr4][8]	#"v"
 			else:												return self.TrendDeltaDisplay[stdOr4][7] 	# "="
 		except	Exception:
-			self.logger.error("dataIn: {}".format(dataIn), exc_info=True)
+			self.logger.error("trend:{}, trendDeltaPercent:{}, stdOr4:{}".format(trend, trendDeltaPercent, stdOr4), exc_info=True)
 		return "="
 		
 		
@@ -1421,7 +1443,8 @@ class Plugin(indigo.PluginBase):
 			for line in dataLines.split("\n"):
 				if len(line) < 20: continue
 				line = line.split(";")
- 
+				if len(line) < 2: continue
+
 				v = self.getNumber(line[1])
 				if v == "x": 			continue
 				if v > ignoreGreater:   continue
@@ -1577,8 +1600,8 @@ class Plugin(indigo.PluginBase):
 
 
 	####-----------------	 ---------
-	def saveDevList(self):
-		if time.time() - self.lastDevSave  < 20: return 
+	def saveDevList(self, force=False):
+		if not force and time.time() - self.lastDevSave  < 20: return
 		xx = copy.deepcopy(self.devList)
 		for devId in self.devList:
 			if  "states" not in self.devList[devId]: continue
@@ -1616,6 +1639,7 @@ class Plugin(indigo.PluginBase):
 			return ret.decode('utf_8'), err.decode('utf_8')
 		except	Exception:
 			self.logger.error("", exc_info=True)
+		return "", ""
 
 
 

@@ -253,7 +253,7 @@ You can define a short name instead of eg s-11-govee-mini__Temperature use Garag
             <Field id="lastDay18-6Count1"          visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Count >0:</Label></Field>
             <Field id="lastDay18-6UpTime"          visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -UpTime%:</Label></Field>
             <Field id="lastDay18-6StdDev"          visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDev:</Label></Field>
-            <Field id="lastDay18-6StdStdDevSimple" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDevSimple:</Label></Field>
+            <Field id="lastDay18-6StdDevSimple" visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -StdDevSimple:</Label></Field>
             <Field id="lastDay18-6Start"           visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Start Value:</Label></Field>
             <Field id="lastDay18-6End"             visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -End Value:</Label></Field>
             <Field id="lastDay18-6Consumption"     visibleBindingId="showM" visibleBindingValue="true"   type="checkbox" defaultValue="true"><Label>.. -Consumption: StartValue-EndValue:</Label></Field>

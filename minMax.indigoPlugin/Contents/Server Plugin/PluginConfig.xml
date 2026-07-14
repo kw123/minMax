@@ -55,6 +55,10 @@ In menu Define Device + States ... you can select the device/states or variables
 		<Label>Show ^^^^^^^ .. or ^^^4^^^ in Trend display </Label> 
 	 </Field>
 
+    <Field id="refreshRate"  type="textfield" defaultValue="30" >
+        <Label>Refresh rate for calculations [secs]:</Label>
+    </Field>
+
     <Field
         id="liteOrPsql"
         type="menu"
